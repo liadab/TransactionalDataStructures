@@ -3,4 +3,4 @@ project(TransactionalDataStructures)
 
 set(CMAKE_CXX_STANDARD 17)
 
-add_executable(tds main.cpp nodes/LNode.cpp nodes/LNode.h)
+add_executable(tds main.cpp nodes/LNode.inl nodes/LNode.h)
