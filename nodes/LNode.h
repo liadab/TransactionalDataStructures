@@ -154,7 +154,7 @@ private:
     static constexpr uint64_t VERSIONNEG_MASK = LOCK_MASK | DELETE_MASK | SINGLETON_MASK;
     std::unique_ptr<key_t> m_key;
     std::unique_ptr<val_t> m_val;
-    LNode<key_t, val_t> m_next;
+    std::unique_ptr<LNode<key_t, val_t>> m_next;
     std::atomic<uint64_t> m_version_mask;
 };
 
