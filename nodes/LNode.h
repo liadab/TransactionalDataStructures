@@ -8,6 +8,8 @@
 template <typename key_t, typename val_t>
 class LNode {
 public:
+    std::unique_ptr<key_t> m_key;
+    std::unique_ptr<val_t> m_val;
 
 private:
     bool tryLock() {
@@ -152,8 +154,6 @@ private:
     static constexpr uint64_t DELETE_MASK = 0x1000000000000000L;
     static constexpr uint64_t SINGLETON_MASK = 0x1000000000000000L;
     static constexpr uint64_t VERSIONNEG_MASK = LOCK_MASK | DELETE_MASK | SINGLETON_MASK;
-    std::unique_ptr<key_t> m_key;
-    std::unique_ptr<val_t> m_val;
     std::unique_ptr<LNode<key_t, val_t>> m_next;
     std::atomic<uint64_t> m_version_mask;
 };
