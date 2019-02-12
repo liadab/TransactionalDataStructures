@@ -9,8 +9,8 @@ template <typename key_t, typename val_t>
 class Index {
 public:
 
-    Index(LNode<key_t, val_t> head_node) {
-        head_node.setVal(BASE_HEADER);
+    Index(std::shared_ptr<LNode<key_t, val_t>> head_node) {
+        head_node->setVal(BASE_HEADER);
         m_head = new HeadIndex(head_node, NULL, NULL, 1);
         m_rand = new Rand(2, 2^31 - 1); // distribution 
     }
@@ -50,8 +50,7 @@ public:
                 }
             }
         }
-        // find insertion points and splice in
-        splice:
+        // find insertion points and splice in splice:
         for (int insertion_level = level; ; ) {
             int j = head.m_level;
             for (IndexNode q = head, r = q.m_right, t = idx; ; ) {

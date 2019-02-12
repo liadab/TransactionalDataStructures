@@ -1,7 +1,7 @@
 #include <iostream>
 
 #include "nodes/LNode.h"
-#include "nodes/utils.h"
+//#include "nodes/utils.h"
 //#include "nodes/Index.h"
 
 
@@ -12,7 +12,7 @@ int main() {
     LNode <int, int> n;
 //    Index<int, int> my_index = new Index<int, int>(n);
     std::cout << a << std::endl;
-    Rand *r = new Rand(1, 200);
-    std::cout << r->get() << std::endl;
+//    Rand *r = new Rand(1, 200);
+//    std::cout << r->get() << std::endl;
     return 0;
 }
