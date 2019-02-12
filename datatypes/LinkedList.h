@@ -6,29 +6,34 @@
 
 #include "../nodes/LNode.h"
 #include "../nodes/Index.h"
+#include "../nodes/LNodeWrapper.h"
+
+//pre decle Local storge
+template <typename key_t, typename val_t>
+class LocalStorage;
 
 template <typename key_t, typename val_t>
-void safe_assign_next(std::shared_ptr<LNode<key_t, val_t>> next, std::shared_ptr<LNode<key_t, val_t>> n) {
+void safe_assign_next(LNodeWrapper<key_t,val_t> next, LNodeWrapper<key_t,val_t> n) {
     std::atomic_thread_fence(std::memory_order_acquire);
-    std::shared_ptr<LNode<key_t, val_t>> next = n.next;
+    node_t next = n.next;
     std::atomic_thread_fence(std::memory_order_release);
 }
 
 template <typename key_t, typename val_t>
 class LinkedList {
 public:
-    std::shared_ptr<LNode<key_t, val_t>> head;
+    using node_t = LNodeWrapper<key_t,val_t>;
+
+    node_t head;
     Index<key_t, val_t> index;
 
     LinkedList() :
-        head(std::make_shared<LNode<key_t, val_t>>()),
+        head(std::numeric_limits<key_t>::min()),
         index(head)
-    {
-        head->m_key = std::make_unique<key_t>(std::numeric_limits<key_t>::min());
-    }
+    { }
 
-    std::shared_ptr<LNode<key_t, val_t>> getPredSingleton(std::shared_ptr<LNode<key_t, val_t>> n) {
-        std::shared_ptr<LNode<key_t, val_t>> pred = index.getPred(n);
+    node_t getPredSingleton(node_t n) {
+        node_t pred = index.getPred(n);
         while (pred.isLockedOrDeleted()) {
             if (pred == head) {
                 return head;
@@ -38,7 +43,7 @@ public:
         return pred;
     }
 
-    val_t getVal(LNode<key_t, val_t> n, LocalStorage localStorage) {
+    val_t getVal(LNode<key_t, val_t> n, LocalStorage<key_t, val_t>& localStorage) {
         std::optional<WriteElement> we = localStorage.writeSet.get(n);
         if (we) {
             return we.val;
@@ -46,7 +51,7 @@ public:
         return n.val;
     }
 
-    std::shared_ptr<LNode<key_t, val_t>> getPred(LNode<key_t, val_t> n, LocalStorage localStorage) {
+    node_t getPred(LNode<key_t, val_t> n, LocalStorage<key_t, val_t>& localStorage) {
         LNode<key_t, val_t> pred = index.getPred(n);
         while (true) {
             if (pred.isLocked() || pred.getVersion() > localStorage.readVersion) {
@@ -80,7 +85,7 @@ public:
         }
     }
 
-    std::shared_ptr<LNode<key_t, val_t>> getNext(std::shared_ptr<LNode<key_t, val_t>> n, LocalStorage& localStorage) {
+    node_t getNext(node_t n, LocalStorage<key_t, val_t>& localStorage) {
         // first try to read from private write set
         WriteElement we = localStorage.writeSet.get(n);
         if (we != null) {
@@ -109,12 +114,12 @@ public:
     }
 
     std::optional<val_t> putSingleton(key_t key, val_t val) {
-        std::shared_ptr<LNode<key_t, val_t>> n = std::make_shared<LNode<key_t, val_t>>();
+        node_t n;
         n->key = key;
         n->val = val;
 
-        std::shared_ptr<LNode<key_t, val_t>> pred;
-        std::shared_ptr<LNode<key_t, val_t>> next;
+        node_t pred;
+        node_t next;
 
         while (true) {
             boolean startOver = false;
@@ -238,7 +243,7 @@ public:
         // TX
 
         localStorage.readOnly = false;
-        std::shared_ptr<LNode<key_t, val_t>> n = std::make_shared<LNode<key_t, val_t>>();
+        node_t n;
         n.key = key;
         n.val = val;
 
@@ -292,12 +297,12 @@ public:
     }
 
     std::optional<val_t> putIfAbsentSingleton(key_t key, val_t val) {
-        std::shared_ptr<LNode<key_t, val_t>> n = std::make_shared<LNode<key_t, val_t>>();
+        node_t n;
         n.key = key;
         n.val = val;
 
-        std::shared_ptr<LNode<key_t, val_t>> pred;
-        std::shared_ptr<LNode<key_t, val_t>> next;
+        node_t pred;
+        node_t next;
 
         while (true) {
 
@@ -411,7 +416,7 @@ public:
 
         // TX
         localStorage.readOnly = false;
-        std::shared_ptr<LNode<key_t, val_t>> n = std::make_shared<LNode<key_t, val_t>>();
+        node_t n;
         n.key = key;
         n.val = val;
 
@@ -447,11 +452,11 @@ public:
     }
 
     std::optional<val_t> removeSingleton(key_t key) {
-        std::shared_ptr<LNode<key_t, val_t>> n = std::make_shared<LNode<key_t, val_t>>();
+        node_t n;
         n.key = key;
 
-        std::shared_ptr<LNode<key_t, val_t>> pred;
-        std::shared_ptr<LNode<key_t, val_t>> next;
+        node_t pred;
+        node_t next;
 
         while (true) {
 
@@ -515,7 +520,7 @@ public:
                             startOver = true;
                             break;
                         }
-                        std::shared_ptr<LNode<key_t, val_t>> toRemove;
+                        node_t toRemove;
                         Object valToRet;
                         if (next.tryLock()) {
                             toRemove = next;
@@ -573,7 +578,7 @@ public:
 
         localStorage.readOnly = false;
 
-        std::shared_ptr<LNode<key_t, val_t>> n = std::make_shared<LNode<key_t, val_t>>();
+        node_t n;
         n.key = key;
         n.val = std::none;
 
@@ -615,11 +620,11 @@ public:
     }
 
     bool containsKeySingleton(key_t key) {
-        std::shared_ptr<LNode<key_t, val_t>> n = std::make_shared<LNode<key_t, val_t>>();
+        node_t n;
         n.key = key;
 
-        std::shared_ptr<LNode<key_t, val_t>> pred = null;
-        std::shared_ptr<LNode<key_t, val_t>> next;
+        node_t pred = null;
+        node_t next;
 
         bool startOver = true;
 
@@ -674,7 +679,7 @@ public:
         }
 
         // TX
-        std::shared_ptr<LNode<key_t, val_t>> n = std::make_shared<LNode<key_t, val_t>>();
+        node_t n;
         n.key = key;
         n.val = null;
 
@@ -699,11 +704,11 @@ public:
     }
 
     std::optional<val_t> getSingleton(key_t key) {
-        std::shared_ptr<LNode<key_t, val_t>> n = std::make_shared<LNode<key_t, val_t>>();
+        node_t n;
         n.key = key;
 
-        std::shared_ptr<LNode<key_t, val_t>> pred = null;
-        std::shared_ptr<LNode<key_t, val_t>> next;
+        node_t pred = null;
+        node_t next;
 
         boolean startOver = true;
 
@@ -759,7 +764,7 @@ public:
         }
 
         // TX
-        std::shared_ptr<LNode<key_t, val_t>> n = std::make_shared<LNode<key_t, val_t>>();
+        node_t n;
         n.key = key;
         n.val = null;
 

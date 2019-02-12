@@ -1,8 +1,10 @@
 #pragma once
-
-
 #include "LNode.h"
 
+/**
+ * this class is wrapping the Lnode so we would have easier control on its memory model.
+ * for now its just a shared_ptr wrapper
+ */
 template <typename key_t, typename val_t>
 class LNodeWrapper {
 public:
@@ -25,6 +27,3 @@ private:
     std::shared_ptr<LNode<key_t, val_t>> m_node;
 
 };
-
-
-#endif //TRANSACTIONALDATASTRUCTURES_LNODEWRAPPER_H
