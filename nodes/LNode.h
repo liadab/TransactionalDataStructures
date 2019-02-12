@@ -8,8 +8,8 @@
 template <typename key_t, typename val_t>
 class LNode {
 public:
-    std::unique_ptr<key_t> m_key;
-    std::unique_ptr<val_t> m_val;
+    key_t m_key;
+    val_t m_val;
 
 private:
     bool tryLock() {
