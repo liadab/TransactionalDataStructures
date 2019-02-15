@@ -236,4 +236,3 @@ private:
 
     HeadIndex m_head; // TODO: volatile?
 };
-#include "Index.inl"

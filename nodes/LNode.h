@@ -18,7 +18,7 @@ public:
     std::optional<val_t> m_val;
     node_t m_next;
 
-    LNode(key_t key) : m_key(std::move(key)) {}
+    explicit LNode(key_t key) : m_key(std::move(key)) {}
 
     bool tryLock() {
         uint64_t l = m_version_mask;
@@ -166,4 +166,3 @@ private:
     std::atomic<uint64_t> m_version_mask;
 };
 
-#include "LNode.inl"

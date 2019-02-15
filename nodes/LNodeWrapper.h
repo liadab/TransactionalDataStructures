@@ -11,8 +11,7 @@ public:
     LNodeWrapper() = default;
 
     explicit LNodeWrapper(key_t key) {
-        m_node = std::make_shared<LNode<key_t, val_t>>();
-        m_node->m_key = std::move(key);
+        m_node = std::make_shared<LNode<key_t, val_t>>(std::move(key));
     }
 
     LNodeWrapper(key_t key, val_t val) : LNodeWrapper(std::move(key)){

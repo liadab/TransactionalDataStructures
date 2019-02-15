@@ -9,6 +9,7 @@
 #include "../nodes/LNodeWrapper.h"
 #include "../LocalStorage.h"
 #include "../WriteElement.h"
+#include "dummyIndex.h"
 
 //pre decle Local storge
 //template <typename key_t, typename val_t>
@@ -26,9 +27,10 @@ template <typename key_t, typename val_t>
 class LinkedList {
 public:
     using node_t = LNodeWrapper<key_t,val_t>;
+    using index_t = DummyIndex<key_t, val_t>;
 
     node_t head;
-    Index<key_t, val_t> index;
+    index_t index;
 
     LinkedList() :
         head(std::numeric_limits<key_t>::min()),
