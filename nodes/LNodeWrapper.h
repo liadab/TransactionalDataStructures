@@ -10,13 +10,21 @@ class LNodeWrapper {
 public:
     LNodeWrapper() = default;
 
-    LNodeWrapper(key_t key) {
+    explicit LNodeWrapper(key_t key) {
         m_node = std::make_shared<LNode<key_t, val_t>>();
         m_node->m_key = std::move(key);
     }
 
     LNodeWrapper(key_t key, val_t val) : LNodeWrapper(std::move(key)){
         m_node->m_val = std::move(val);
+    }
+
+    bool operator==(const LNodeWrapper<key_t, val_t>& other) {
+        return m_node == other.m_node;
+    }
+
+    bool operator==(const std::shared_ptr<LNode<key_t, val_t>>& other) {
+        return m_node == other;
     }
 
     LNode<key_t, val_t>* operator->() {
