@@ -3,4 +3,4 @@ project(TransactionalDataStructures)
 
 set(CMAKE_CXX_STANDARD 17)
 
-add_executable(tds main.cpp nodes/LNode.h datatypes/dummyIndex.h nodes/utils.cpp)
+add_executable(tds main.cpp nodes/LNode.h datatypes/dummyIndex.h nodes/utils.cpp TX.h)

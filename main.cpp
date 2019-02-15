@@ -15,9 +15,9 @@ int main() {
 //    Index<int, int> my_index = new Index<int, int>(n);
 //    Rand *r = new Rand(1, 200);
 //    std::cout << r->get() << std::endl;
-
-    LinkedList<size_t, size_t> l;
-//    std::cout << *l.get(5) << std::endl;
+    std::shared_ptr<TX> tx;
+    LinkedList<size_t, size_t> l(tx);
+   std::cout << *l.get(5) << std::endl;
 
     return 0;
 }

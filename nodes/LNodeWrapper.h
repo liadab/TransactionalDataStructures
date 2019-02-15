@@ -22,16 +22,16 @@ public:
         return m_node == other.m_node;
     }
 
-    bool operator==(const std::shared_ptr<LNode<key_t, val_t>>& other) {
-        return m_node == other;
+    bool operator!=(const LNodeWrapper<key_t, val_t>& other) {
+        return m_node != other.m_node;
+    }
+
+    bool is_null() {
+        return static_cast<bool>(m_node);
     }
 
     LNode<key_t, val_t>* operator->() {
         return m_node.get();
-    }
-
-    bool is_null() {
-        return m_node == null;
     }
 
 private:

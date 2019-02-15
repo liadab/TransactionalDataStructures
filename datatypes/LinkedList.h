@@ -10,6 +10,7 @@
 #include "../LocalStorage.h"
 #include "../WriteElement.h"
 #include "dummyIndex.h"
+#include "../TX.h"
 
 //pre decle Local storge
 //template <typename key_t, typename val_t>
@@ -29,10 +30,12 @@ public:
     using node_t = LNodeWrapper<key_t,val_t>;
     using index_t = DummyIndex<key_t, val_t>;
 
+    std::shared_ptr<TX> m_tx;
     node_t head;
     index_t index;
 
-    LinkedList() :
+    LinkedList(std::shared_ptr<TX> tx) :
+        m_tx(std::move(tx)),
         head(std::numeric_limits<key_t>::min()),
         index(head)
     { }
@@ -50,9 +53,9 @@ public:
 
     std::optional<val_t> getVal(node_t n, LocalStorage<key_t, val_t>& localStorage) {
         auto we_it = localStorage.writeSet.find(n);
-        std::optional<WriteElement> we = localStorage.writeSet.get(n);
         if (we_it != localStorage.writeSet.end()) {
-            return *we_it;
+            const auto& we = we_it->second;
+            return we.val;
         }
         return n->m_val;
     }
@@ -68,13 +71,13 @@ public:
             if (pred->isSameVersionAndSingleton(localStorage.readVersion)) {
                 // TODO in the case of a thread running singleton and then TX
                 // this TX will abort once but for no reason
-                TX.incrementAndGetVersion();
+                m_tx->incrementAndGetVersion();
                 localStorage.TX = false;
                 throw TxAbortException();
             }
             auto we_it = localStorage.writeSet.find(pred);
             if (we_it != localStorage.writeSet.end()) {
-                const auto& we = *we_it;
+                const auto& we = we_it->second;
                 if (we.deleted) {
                     // if you deleted it earlier
                     assert (pred != head);
@@ -93,10 +96,10 @@ public:
 
     node_t getNext(node_t n, LocalStorage<key_t, val_t>& localStorage) {
         // first try to read from private write set
-        auto we_it = localStorage.writeSet.find(pred);
+        auto we_it = localStorage.writeSet.find(n);
         if (we_it != localStorage.writeSet.end()) {
-            const WriteElement& we = *we_it;
-            return we->m_next;
+            const auto& we = we_it->second;
+            return we.next;
         }
 
         // because we don't read next and locked at once,
@@ -113,7 +116,7 @@ public:
             throw TxAbortException();
         }
         if (n->isSameVersionAndSingleton(localStorage.readVersion)) {
-            TX.incrementAndGetVersion();
+            m_tx->incrementAndGetVersion();
             localStorage.TX = false;
             throw TxAbortException();
         }
@@ -121,18 +124,19 @@ public:
     }
 
     //find a node if found return true, pred and the node otherwise false with pred as the one that should be bfore the node
-    std::tuple<bool, node_t, node_t> find_node_singelton(const LocalStorage<key_t, val_t>& localStorage, node_t n) const {
+    std::tuple<bool, node_t, node_t> find_node_singelton(LocalStorage<key_t, val_t>& localStorage, node_t n) {
+        auto key = n->m_key;
         while (true) {
             bool startOver = false;
-            pred = getPredSingleton(n);
+            auto pred = getPredSingleton(n);
             if (pred->isLocked()) {
                 continue;
             }
-            next = safe_get_next(pred);
+            auto next = safe_get_next(pred);
             if (pred->isLockedOrDeleted()) {
                 continue;
             }
-            while (next != null) {
+            while (next.is_null()) {
                 if (next->isLockedOrDeleted()) {
                     // when we encounter a locked node while traversing the list
                     // we have to start over
@@ -154,7 +158,7 @@ public:
                 }
                 std::atomic_thread_fence(std::memory_order_acquire);
                 pred = pred->m_next;
-                if (pred == std::nullptr_t) {
+                if (pred.is_null()) {
                     // next was not null but now perd->m_next is null
                     // to prevent null exception later
                     startOver = true;
@@ -169,20 +173,20 @@ public:
             }
 
             if (startOver) { continue; }
-            return std::make_tuple(false, pred, std::nullptr_t);
+            return std::make_tuple(false, pred, LNodeWrapper<key_t,val_t>());
         }
     }
 
     //find a node if found return true, pred and the node otherwise false
-    std::tuple<bool, node_t, node_t> find_node(const LocalStorage<key_t, val_t>& localStorage, node_t n) const {
+    std::tuple<bool, node_t, node_t> find_node(LocalStorage<key_t, val_t>& localStorage, node_t n) {
         auto pred = getPred(n, localStorage);
         auto next = getNext(pred, localStorage);
         bool found = false;
 
-        while (next != null) {
-            if (next.key == key) {
+        while (next.is_null()) {
+            if (next->m_key == n->m_key) {
                 return std::make_tuple(true, pred, next);
-            } else if (next.key > key) {
+            } else if (next->m_key > n->m_key) {
                 return std::make_tuple(false, pred, next);
             } else {
                 pred = next;
@@ -207,7 +211,7 @@ public:
                     auto ret = node->m_val;
                     node->m_va = val;
                     node->setSingleton(true);
-                    node->setVersion(TX.getVersion());
+                    node->setVersion(m_tx->getVersion());
                     node->unlock();
                     return ret; // return previous value associated with key
                 } else {
@@ -222,7 +226,7 @@ public:
                     }
                     n->m_next = pred->m_next;
                     pred->m_next = n;
-                    n->setVersionAndSingletonNoLockAssert(TX.getVersion(), true);
+                    n->setVersionAndSingletonNoLockAssert(m_tx->getVersion(), true);
                     pred->unlock();
                     index.add(n);
                     return std::nullopt_t;
@@ -255,7 +259,7 @@ public:
     // associated null with key, if the implementation supports null values.)
     // @throws NullPointerException if the specified key or value is null
     std::optional<val_t> put(key_t key, val_t val) {
-        LocalStorage& localStorage = TX.lStorage.get();
+        auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
 
         // SINGLETON
         if (!localStorage.TX) {
@@ -271,15 +275,15 @@ public:
         if (found) {
             auto we_it = localStorage.writeSet.find(pred);
             if (we_it != localStorage.writeSet.end()) {
-                const WriteElement& we = *we_it;
+                const auto& we = we_it->second;
                 localStorage.putIntoWriteSet(next, we->next, val, we->deleted);
             } else {
                 localStorage.putIntoWriteSet(next, next->m_next, val, false);
             }
             // add to read set
             localStorage.readSet.add(next);
-            if (TX.DEBUG_MODE_LL) {
-                System.out.println("put key " + key + ":");
+            if (m_tx->DEBUG_MODE_LL) {
+                std::cout << ("put key " + key + ":") << std::endl;
                 printWriteSet();
             }
             return next.val;
@@ -294,8 +298,8 @@ public:
         // add to read set
         localStorage.readSet.emplace(pred);
 
-        if (TX.DEBUG_MODE_LL) {
-            System.out.println("put key " + key + ":");
+        if (m_tx->DEBUG_MODE_LL) {
+            std::cout << ("put key " + key + ":") << std::endl;
             printWriteSet();
         }
 
@@ -323,7 +327,7 @@ public:
                     }
                     n->m_next = pred->m_next;
                     pred->m_next = n;
-                    n->setVersionAndSingletonNoLockAssert(TX.getVersion(), true);
+                    n->setVersionAndSingletonNoLockAssert(m_tx->getVersion(), true);
                     pred->unlock();
                     index.add(n);
                     return std::nullopt;
@@ -356,7 +360,7 @@ public:
     // null with the key, if the implementation supports null values.)
     // @throws NullPointerException if the specified key or value is null
     std::optional<val_t> putIfAbsent(key_t key, val_t val) {
-        LocalStorage localStorage = TX.lStorage.get();
+        auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
 
         // SINGLETON
         if (!localStorage.TX) {
@@ -391,12 +395,12 @@ public:
             }
             //found key trying to remove
             // the key exists
-            if (TX.DEBUG_MODE_LL) {
-                System.out.println("removeSingleton: the key exists " + key);
+            if (m_tx->DEBUG_MODE_LL) {
+                std::cout << ("removeSingleton: the key exists " + key) << std::endl;
             }
             if (pred->tryLock()) {
-                if (TX.DEBUG_MODE_LL) {
-                    System.out.println("removeSingleton: pred was locked of key " + key);
+                if (m_tx->DEBUG_MODE_LL) {
+                    std::cout << ("removeSingleton: pred was locked of key " + key) << std::endl;
                 }
                 if (pred->isDeleted() || next != pred->m_next) {
                     pred->unlock();
@@ -409,11 +413,11 @@ public:
                     valToRet = toRemove.val;
                     toRemove.val = std::nullopt; // for Index
                     pred->m_next = pred->m_next->m_next;
-                    auto ver = TX.getVersion();
+                    auto ver = m_tx->getVersion();
                     toRemove->setVersionAndDeletedAndSingleton(ver, true, true);
                     pred->setVersionAndSingleton(ver, true);
-                    if (TX.DEBUG_MODE_LL) {
-                        System.out.println("removeSingleton: removed key " + key);
+                    if (m_tx->DEBUG_MODE_LL) {
+                        std::cout << ("removeSingleton: removed key " + key) << std::endl;
                     }
                 } else {
                     pred->unlock();
@@ -424,8 +428,8 @@ public:
                 index.remove(toRemove);
                 return valToRet;
             } else {
-                if (TX.DEBUG_MODE_LL) {
-                    System.out.println("removeSingleton: the key exists, couldn't lock " + key);
+                if (m_tx->DEBUG_MODE_LL) {
+                    std::cout << ("removeSingleton: the key exists, couldn't lock " + key) << std::endl;
                 }
                 continue;
             }
@@ -438,7 +442,7 @@ public:
     // or null if the map contained no mapping for the key.
     // @throws NullPointerException if the specified key is null
     std::optional<val_t> remove(key_t key) {
-        LocalStorage localStorage = TX.lStorage.get();
+        auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
         // SINGLETON
         if (!localStorage.TX) {
             return removeSingleton(key);
@@ -461,7 +465,8 @@ public:
             localStorage.addToIndexRemove(this, next);
             auto we_it = localStorage.writeSet.find(next);
             if (we_it != localStorage.writeSet.end()) {
-                return we_it->val;
+                const auto& we = we_it->second;
+                return we.val;
             }
             return next->m_val;
         }
@@ -477,7 +482,7 @@ public:
     }
 
     bool containsKey(key_t key) {
-        LocalStorage localStorage = TX.lStorage.get();
+        auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
         // SINGLETON
         if (!localStorage.TX) {
             return containsKeySingleton(key);
@@ -489,7 +494,8 @@ public:
     }
 
     std::optional<val_t> getSingleton(key_t key) {
-        node_t n(std::move(key), std::move(val));
+        auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
+        node_t n(std::move(key));
         //TODO maybe only get pred is more efficent
         auto[found, pred, next] = find_node_singelton(localStorage, n);
         if(found) {
@@ -499,25 +505,23 @@ public:
     }
 
     std::optional<val_t> get(key_t key) {
-
-        LocalStorage localStorage = TX.lStorage.get();
-
+        auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
         // SINGLETON
         if (!localStorage.TX) {
             return getSingleton(key);
         }
 
         // TX
-        node_t n(std::move(key), std::move(val));
+        node_t n(std::move(key));
         auto [found, pred, next] = find_node(localStorage, n);
-        if (TX.DEBUG_MODE_LL) {
-            System.out.println("get key " + key + ":");
-            System.out.println("pred is " + pred.key);
-            printWriteSet();
+        if (m_tx->DEBUG_MODE_LL) {
+            std::cout << "get key " << key << ":" << std::endl;
+            std::cout << "pred is " << pred->m_key << std::endl;
+//            printWriteSet();
         }
 
         // add to read set
-        localStorage.readSet.add(pred);
+        localStorage.readSet.emplace(pred);
         if(found) {
             assert (next->m_key == key);
             return next->m_val;

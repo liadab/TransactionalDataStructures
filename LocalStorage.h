@@ -11,6 +11,7 @@ class LinkedList;
 
 template <typename key_t, typename val_t>
 class LocalStorage {
+public:
     using node_t = LNodeWrapper<key_t,val_t>;
 
 
