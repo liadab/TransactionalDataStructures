@@ -3,14 +3,16 @@
 #include <climits>
 #include "utils.h"
 #include "LNode.h"
+#include "LNodeWrapper.h"
 
 
 template <typename key_t, typename val_t>
 class Index {
 public:
+    using node_t = LNodeWrapper<key_t,val_t>;
 
-    Index(std::shared_ptr<LNode<key_t, val_t>> head_node) {
-        head_node->setVal(BASE_HEADER);
+    Index(node_t head_node) {
+        head_node->m_val = BASE_HEADER;
         m_head = new HeadIndex(head_node, NULL, NULL, 1);
         m_rand = new Rand(2, 2^31 - 1); // distribution 
     }

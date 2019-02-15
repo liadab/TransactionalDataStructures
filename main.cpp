@@ -9,7 +9,7 @@ int main() {
     std::cout << "Hello, World!" << std::endl;
     size_t a;
     a = 5;
-    LNode <int, int> n;
+    LNode <size_t, size_t> n(a);
 //    Index<int, int> my_index = new Index<int, int>(n);
     std::cout << a << std::endl;
 //    Rand *r = new Rand(1, 200);

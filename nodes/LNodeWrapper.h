@@ -12,7 +12,11 @@ public:
 
     LNodeWrapper(key_t key) {
         m_node = std::make_shared<LNode<key_t, val_t>>();
-        m_node->m_key = key;
+        m_node->m_key = std::move(key);
+    }
+
+    LNodeWrapper(key_t key, val_t val) : LNodeWrapper(std::move(key)){
+        m_node->m_val = std::move(val);
     }
 
     LNode<key_t, val_t>* operator->() {
