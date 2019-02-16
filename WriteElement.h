@@ -9,6 +9,6 @@ public:
 
     WriteElement() : deleted(false) {}
     node_t next;
-    val_t val; // used when changing value with put
+    std::optional<val_t> val; // used when changing value with put
     bool deleted;
 };

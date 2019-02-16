@@ -32,6 +32,11 @@ public:
         return !static_cast<bool>(m_node);
     }
 
+    bool is_not_null() {
+        return static_cast<bool>(m_node);
+    }
+
+
     LNode<key_t, val_t>* operator->() {
         return m_node.get();
     }

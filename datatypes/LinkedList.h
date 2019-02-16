@@ -197,9 +197,10 @@ public:
     }
 
     std::optional<val_t> putSingleton(key_t key, val_t val) {
+        auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
         node_t n(std::move(key), std::move(val));
         while (true) {
-            auto[found, pred, next] = find_node_singelton(localStorage, n);
+            auto [found, pred, next] = find_node_singelton(localStorage, n);
             if (found) {
                 // the key exists, change to new value
                 auto node = pred->m_next;
@@ -209,7 +210,7 @@ public:
                         continue;
                     }
                     auto ret = node->m_val;
-                    node->m_va = val;
+                    node->m_val = val;
                     node->setSingleton(true);
                     node->setVersion(m_tx->getVersion());
                     node->unlock();
@@ -217,10 +218,10 @@ public:
                 } else {
                     continue;
                 }
-            } else if (next != std::nullptr_t) {
+            } else if (!next.is_null()) {
                 // key doesn't exist, perform insert
                 if (pred->tryLock()) {
-                    if (pred->isDeleted() || next != pred->next) {
+                    if (pred->isDeleted() || next != pred->m_next) {
                         pred->unlock();
                         continue;
                     }
@@ -229,7 +230,7 @@ public:
                     n->setVersionAndSingletonNoLockAssert(m_tx->getVersion(), true);
                     pred->unlock();
                     index.add(n);
-                    return std::nullopt_t;
+                    return std::nullopt;
                 } else {
                     continue;
                 }
@@ -237,14 +238,14 @@ public:
                 // all are strictly less than key
                 // put at end
                 if (pred->tryLock()) {
-                    if (pred->isDeleted() || pred->m_next != null) {
+                    if (pred->isDeleted() || pred->m_next.is_not_null()) {
                         pred->unlock();
                         continue;
                     }
                     pred->m_next = n;
                     pred->unlock();
                     index.add(n);
-                    return std::nullopt_t;
+                    return std::nullopt;
                 }
             }
         }
@@ -270,23 +271,23 @@ public:
 
         localStorage.readOnly = false;
         node_t n(std::move(key), std::move(val));
-        [found, pred, next] = find_node(localStorage, n);
+        auto [found, pred, next] = find_node(localStorage, n);
 
         if (found) {
             auto we_it = localStorage.writeSet.find(pred);
             if (we_it != localStorage.writeSet.end()) {
                 const auto& we = we_it->second;
-                localStorage.putIntoWriteSet(next, we->next, val, we->deleted);
+                localStorage.putIntoWriteSet(next, we.next, val, we.deleted);
             } else {
                 localStorage.putIntoWriteSet(next, next->m_next, val, false);
             }
             // add to read set
-            localStorage.readSet.add(next);
+            localStorage.readSet.emplace(next);
             if (m_tx->DEBUG_MODE_LL) {
-                std::cout << ("put key " + key + ":") << std::endl;
-                printWriteSet();
+                std::cout << "put key " << key << ":" << std::endl;
+                //printWriteSet();
             }
-            return next.val;
+            return next->m_val;
         }
 
         // not found
@@ -299,15 +300,16 @@ public:
         localStorage.readSet.emplace(pred);
 
         if (m_tx->DEBUG_MODE_LL) {
-            std::cout << ("put key " + key + ":") << std::endl;
-            printWriteSet();
+            std::cout << "put key " << key  << ":" << std::endl;
+           // printWriteSet();
         }
 
-        return null;
+        return std::nullopt;
     }
 
     std::optional<val_t> putIfAbsentSingleton(key_t key, val_t val) {
         node_t n(std::move(key), std::move(val));
+        auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
         while (true) {
             auto[found, pred, next] = find_node_singelton(localStorage, n);
             if (found) {
@@ -318,7 +320,7 @@ public:
                 }
                 // return previous value associated with key
                 return node.val;
-            } else if (next != std::nullptr_t) {
+            } else if (!next.is_null()) {
                 // key doesn't exist, perform insert
                 if (pred->tryLock()) {
                     if (pred->isDeleted() || next != pred->m_next) {
@@ -338,7 +340,7 @@ public:
                 // all are strictly less than key
                 // put at end
                 if (pred->tryLock()) {
-                    if (pred->isDeleted() || pred->m_next != null) {
+                    if (pred->isDeleted() || pred->m_next.is_not_null()) {
                         pred->unlock();
                         continue;
                     }
@@ -388,6 +390,7 @@ public:
 
     std::optional<val_t> removeSingleton(key_t key) {
         node_t n(key_t);
+        auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
         while (true) {
             auto[found, pred, next] = find_node_singelton(localStorage, n);
             if (!found) {
@@ -451,15 +454,15 @@ public:
         // TX
 
         localStorage.readOnly = false;
-        node_t n(std::move(key), std::move(val));
-        [found, pred, next] = find_node(localStorage, n);
+        node_t n(std::move(key));
+        auto [found, pred, next] = find_node(localStorage, n);
         // add to read set
         localStorage.readSet.emplace(pred);
 
 
         if (found) {
             localStorage.putIntoWriteSet(pred, getNext(next, localStorage), getVal(pred, localStorage), false);
-            localStorage.putIntoWriteSet(next, null, getVal(next, localStorage), true);
+            localStorage.putIntoWriteSet(next, node_t(), getVal(next, localStorage), true);
             // add to read set
             localStorage.readSet.emplace(next);
             localStorage.addToIndexRemove(this, next);
@@ -475,7 +478,8 @@ public:
     }
 
     bool containsKeySingleton(key_t key) {
-        node_t n(std::move(key), std::move(val));
+        node_t n(std::move(key));
+        auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
         //TODO maybe only get pred is more efficent
         auto[found, pred, next] = find_node_singelton(localStorage, n);
         return found;
@@ -488,7 +492,7 @@ public:
             return containsKeySingleton(key);
         }
         // TX
-        node_t n(std::move(key), std::move(val));
+        node_t n(std::move(key));
         auto [found, pred, next] = find_node(localStorage, n);
         return found;
     }
@@ -527,6 +531,21 @@ public:
             return next->m_val;
         }
         return std::nullopt;
+    }
+
+    friend std::ostream& operator<< (std::ostream& stream, const LinkedList<key_t, val_t>& list) {
+        auto cur = list.head;
+        while(!cur.is_null()) {
+            stream << ", [" << cur->m_key << ": ";
+            if(cur->m_val) {
+                stream << *cur->m_val;
+            } else {
+                stream << "None";
+            }
+            stream << "] ";
+            cur = cur->m_next;
+        }
+        return stream;
     }
 };
 

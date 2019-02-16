@@ -2,6 +2,7 @@
 
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 #include "nodes/LNode.h"
 #include "WriteElement.h"
@@ -26,12 +27,12 @@ public:
     std::unordered_map<LinkedList<key_t, val_t>*, std::vector<node_t>> indexAdd;
     std::unordered_map<LinkedList<key_t, val_t>*, std::vector<node_t>> indexRemove;
 
-    void putIntoWriteSet(node_t node, node_t next, val_t val, bool deleted) {
-        WriteElement<key_t, val_t>> we;
+    void putIntoWriteSet(node_t node, node_t next, std::optional<val_t> val, bool deleted) {
+        WriteElement<key_t, val_t> we;
         we.next = next;
         we.deleted = deleted;
         we.val = val;
-        writeSet.put(node, we);
+        writeSet[node] = we;
     }
 
     void addToIndexAdd(LinkedList<key_t, val_t>* list, node_t node) {
@@ -39,8 +40,8 @@ public:
         if(indexAdd.count(list) == 0) {
             indexAdd[list] = std::vector<node_t>();
         }
-        std::vector<node_t>& nodes = indexAdd.get(list);
-        nodes.add(node);
+        auto& nodes = indexAdd[list];
+        nodes.push_back(std::move(node));
         //indexAdd.put(list, nodes);
     }
 
@@ -49,8 +50,8 @@ public:
         if(indexRemove.count(list) == 0) {
             indexRemove[list] = std::vector<node_t>();
         }
-        std::vector<LNode>& nodes = indexRemove.get(list);
-        nodes.add(node);
+        auto& nodes = indexRemove[list];
+        nodes.push_back(std::move(node));
         //indexRemove.put(list, nodes);
     }
 

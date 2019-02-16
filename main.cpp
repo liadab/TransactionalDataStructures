@@ -17,7 +17,8 @@ int main() {
 //    std::cout << r->get() << std::endl;
     std::shared_ptr<TX> tx;
     LinkedList<size_t, size_t> l(tx);
-   std::cout << *l.get(5) << std::endl;
+    l.put(5, 3);
+    std::cout << l << std::endl;
 
     return 0;
 }

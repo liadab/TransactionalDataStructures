@@ -18,7 +18,7 @@ public:
     std::optional<val_t> m_val;
     node_t m_next;
 
-    explicit LNode(key_t key) : m_key(std::move(key)) {}
+    explicit LNode(key_t key) : m_key(std::move(key)), m_version_mask(0) {}
 
     bool tryLock() {
         uint64_t l = m_version_mask;
@@ -160,8 +160,8 @@ public:
 private:
 
     static constexpr uint64_t LOCK_MASK = 0x1000000000000000L;
-    static constexpr uint64_t DELETE_MASK = 0x1000000000000000L;
-    static constexpr uint64_t SINGLETON_MASK = 0x1000000000000000L;
+    static constexpr uint64_t DELETE_MASK = 0x2000000000000000L;
+    static constexpr uint64_t SINGLETON_MASK = 0x4000000000000000L;
     static constexpr uint64_t VERSIONNEG_MASK = LOCK_MASK | DELETE_MASK | SINGLETON_MASK;
     std::atomic<uint64_t> m_version_mask;
 };
