@@ -13,58 +13,59 @@ class Index {
 public:
     using node_t = LNodeWrapper<key_t,val_t>;
 
+    /**
+     * Index initializer
+     * @param head_node    assumed to be dummy node
+     */
     Index(node_t head_node) {
-        head_node->m_val = std::numeric_limits<val_t>::min();
         m_head = new HeadIndex(head_node, NULL, NULL, 1);
         m_rand = new Rand(2, 1 << 31 - 1); // distribution
     }
 
-    void add(LNode<key_t, val_t> node_to_add) {
-        LNode<key_t, val_t> node = node_to_add;
-        if (node == NULL)
+    void add(node_t node_to_add) {
+        if (node_to_add == NULL)
             throw std::invalid_argument("NULL pointer node was given to Index::add");
         int rnd = m_rand.get();
-//        if ((rnd & 0x80000001) != 0) return; // test highest and lowest bits - TODO: why?? why not change the distribution?
         int level = 1, max;
         while (((rnd >>= 1) & 1) != 0)
             ++level;
-        IndexNode idx = NULL;
-        HeadIndex head = m_head;
-        if ((max = head.m_level) >= level) {
-            for (int i = 1; i <= level; ++i)
-                idx = new IndexNode(node, idx, NULL);
-        } else { // try to grow by one level
-            level = max + 1; // hold in array and later pick the one to use
-            IndexNode idxs[] = new IndexNode[level + 1];
-            for (int i = 1; i <= level; ++i)
-                idxs[i] = idx = new IndexNode(node, idx, NULL);
+        auto head = m_head;
+        int old_level = head.m_level;
+        level = std::min(level, old_level + 1); // always try to grow by at most one level
+        std::shared_ptr<IndexNode> idx = NULL;
+        std::vector<std::shared_ptr<IndexNode>> idxs(level+1);
+
+        for (int i = 1; i <= level; ++i)
+            idxs[i] = idx = std::make_shared<IndexNode>(node_to_add, idx, NULL);
+        if (old_level < level) {
             for (; ; ) {
                 head = m_head;
                 int old_level = head.m_level;
                 if (level <= old_level) // lost race to add level
                     break;
-                HeadIndex newh = head;
-                LNode old_base = head.m_node;
-                for (int j = old_level + 1; j <= level; ++j)
-                    newh = new HeadIndex(old_base, newh, idxs[j], j);
+                auto newh = head;
+                node_t old_base = head.m_node;
+                for (int j = old_level + 1; j <= level; ++j) // maybe reduce level happened in between
+                    newh = std::make_shared<HeadIndex>(old_base, newh, idxs[j], j);
                 if (casHead(head, newh)) {
                     head = newh;
-                    idx = idxs[level = old_level]; // level is changed because idxs in all levels b/w ol_level to level was already insert
+                    idx = idxs[level = old_level]; // level is changed because idxs in all levels b/w old_level to level was already insert
                     break;
                 }
             }
         }
+
         // find insertion points and splice in splice:
         for (int insertion_level = level; ; ) {
             int j = head.m_level;
             for (IndexNode q = head, r = q.m_right, t = idx; ; ) {
                 if (q == NULL || t == NULL)
-                    break splice;
+                    break; // TODO break slice
                 if (r != NULL) {
-                    LNode<key_t, val_t> n = r.m_node;
+                    node_t n = r.m_node;
                     // compare before deletion check avoids needing recheck
-                    bool c = (node.m_key > n.m_key);
-                    if (n..m_val() == NULL) {
+                    bool c = (node_to_add.m_key > n.m_key);
+                    if (n.m_val == NULL) {
                         if (!q.unlink(r))
                             break;
                         r = q.m_right;
@@ -80,11 +81,11 @@ public:
                 if (j == insertion_level) {
                     if (!q.link(r, t))
                         break; // restart
-                    if (t.node..m_val() == NULL) {
-                        break splice;
+                    if (t.node.m_val == NULL) {
+                        break; // TODO splice;
                     }
                     if (--insertion_level == 0)
-                        break splice;
+                        break; // TODO splice;
                 }
 
                 if (--j >= insertion_level && j < level)
@@ -95,7 +96,7 @@ public:
         }
     }
 
-    void remove(LNode<key_t, val_t> node) {
+    void remove(node_t node) {
         if (node == NULL)
             throw std::invalid_argument("NULL pointer node was given to Index::remove");
         findPredecessor(node); // clean index
@@ -105,44 +106,49 @@ public:
 
 private:
     Rand m_rand;
+    std::mutex m_lock;
 
     class IndexNode {
     public:
         // TODO: should I need to implement the UNSAFE mechanism?
-        std::unique_ptr<IndexNode> m_right;
-        std::unique_ptr<IndexNode> m_down;
-        std::unique_ptr<LNode<key_t, val_t>> m_node;
+        std::shared_ptr<IndexNode> m_right;
+        const std::shared_ptr<IndexNode> m_down;
+        const node_t m_node;
 
-        IndexNode(LNode<key_t, val_t> node, IndexNode down, IndexNode right) {
-            m_node = node;
-            m_down = down;
-            m_right = right;
-        }
+        IndexNode(node_t node, std::shared_ptr<IndexNode> down, std::shared_ptr<IndexNode> right)
+        : m_node(node), m_down(down), m_right(right) { }
 
-        bool casRight(IndexNode cmp, IndexNode val) {
-            // TODO: cas?
+        bool casRight(std::shared_ptr<IndexNode> cmp, std::shared_ptr<IndexNode> val) {
+            std::lock_guard<std::mutex> l(m_lock);
+            if (m_right == cmp) {
+                m_right = val;
+                return true;
+            } return false;
         }
 
         /**
-             * Tries to CAS newSucc as successor.  To minimize races with
-             * unlink that may lose this index node, if the node being
-             * indexed is known to be deleted, it doesn't try to link in.
-             *
-             * @param succ    the expected current successor
-             * @param new_succ the new successor
-             * @return true if successful
-             */
+         * Tries to CAS newSucc as successor.  To minimize races with
+         * unlink that may lose this index node, if the node being
+         * indexed is known to be deleted, it doesn't try to link in.
+         *
+         * @param succ    the expected current successor
+         * @param new_succ the new successor
+         * @return true if successful
+         */
         bool link(IndexNode succ, IndexNode new_succ) { // TODO: final??
             LNode<key_t, val_t> node = m_node;
             new_succ.m_right = succ;
             return m_node.get_val() != NULL && casRight(succ, new_succ);
         }
+
+    private:
+        std::mutex m_lock;
     };
 
     class HeadIndex : public IndexNode {
     public:
-        const uint64_t m_level; //TODO: final?
-        HeadIndex(LNode<key_t, val_t> node, IndexNode down, IndexNode right, uint64_t level):
+        const uint64_t m_level;
+        HeadIndex(node_t node, std::shared_ptr<IndexNode> down, std::shared_ptr<IndexNode> right, uint64_t level):
                 IndexNode(node, down, right),  m_level(level) { }
     };
 
@@ -150,7 +156,11 @@ private:
      * compareAndSet head node
      */
     bool casHead(std::shared_ptr<HeadIndex> cmp, std::shared_ptr<HeadIndex> val) {
-        return m_head.compare_exchange_strong(cmp, val);
+        std::lock_guard<std::mutex> l(m_lock);
+        if (m_head == cmp) {
+            m_head = val;
+            return true;
+        } return false;
     }
 
     /**
@@ -161,12 +171,12 @@ private:
      *
      * @return a predecessor of key
      */
-    LNode<key_t, val_t> findPredecessor(LNode<key_t, val_t> node) {
+    node_t findPredecessor(node_t node) {
         while (true) {
             for (IndexNode q = m_head, r = q.m_right, d; ; ) {
                 if (r != NULL) {
-                    LNode<key_t, val_t> n = r.m_node;
-                    if (n..m_val() == NULL) { // this node is deleted - needs to be unlinked
+                    node_t n = r.m_node;
+                    if (n.m_val == NULL) { // this node is deleted - needs to be unlinked
                         if (!q.unlink(r))
                             break;           // restart
                         r = q.m_right;         // reread r
@@ -207,7 +217,7 @@ private:
      * reduction.
      */
     void tryReduceLevel() {
-        HeadIndex h = head;
+        HeadIndex h = m_head; // TODO shared ptr way?
         HeadIndex d;
         HeadIndex e;
         if (h.m_level > 3 &&
@@ -221,15 +231,15 @@ private:
             casHead(d, h);   // try to backout
     }
 
-    LNode<key_t, val_t> getPred(LNode<key_t, val_t> node) {
+    node_t getPred(node_t node) {
         if (node == NULL)
             throw std::invalid_argument("NULL pointer node was given to Index::getPred");
         for (; ; ) {
-            LNode<key_t, val_t> b = findPredecessor(node);
-            if (b..m_val() != NULL) // not deleted
+            node_t b = findPredecessor(node);
+            if (b.m_val != NULL) // not deleted
                 return b;
         }
     }
 
-    std::atomic<std::shared_ptr<HeadIndex>> m_head; // TODO: volatile?
+    std::shared_ptr<HeadIndex> m_head;
 };
