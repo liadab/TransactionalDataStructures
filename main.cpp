@@ -14,9 +14,9 @@ int main() {
 
     std::cout << "Hello, World!" << std::endl;
     node_t n(5, 3);
-//    Index<int, int> my_index = new Index<int, int>(n);
-//    Rand *r = new Rand(1, 200);
-//    std::cout << r->get() << std::endl;
+    Index<size_t, size_t > my_index(n);
+    Rand *r = new Rand(1, 200);
+    std::cout << r->get() << std::endl;
     std::shared_ptr<TX> tx = std::make_shared<TX>();
     LinkedList<size_t, size_t> l(tx);
 

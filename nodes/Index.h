@@ -17,13 +17,13 @@ public:
      * Index initializer
      * @param head_node    assumed to be dummy node
      */
-    Index(node_t head_node) {
-        m_head = new HeadIndex(head_node, NULL, NULL, 1);
-        m_rand = new Rand(2, 1 << 31 - 1); // distribution
-    }
+    Index(node_t head_node) :
+        m_head(std::make_shared<HeadIndex>(head_node, std::shared_ptr<IndexNode>(), std::shared_ptr<IndexNode>(), 1)),
+        m_rand(2, (1 << 30) - 1)
+    { }
 
     void add(node_t node_to_add) {
-        if (node_to_add == NULL)
+        if (node_to_add)
             throw std::invalid_argument("NULL pointer node was given to Index::add");
         int rnd = m_rand.get();
         int level = 1, max;
