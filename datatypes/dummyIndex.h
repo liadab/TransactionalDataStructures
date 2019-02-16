@@ -8,5 +8,5 @@ public:
 
     void add(node_t node_to_add) {}
     void remove(LNode<key_t, val_t> node) {}
-    node_t getPred(node_t node) {}
+    node_t getPred(node_t node) { return node_t(); }
 };

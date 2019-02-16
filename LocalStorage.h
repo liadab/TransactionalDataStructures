@@ -23,8 +23,8 @@ public:
     //std::map<Queue, LocalQueue> queueMap = new HashMap<Queue, LocalQueue>();
     std::unordered_map<node_t, WriteElement<key_t, val_t>> writeSet;
     std::unordered_set<node_t> readSet;
-    std::unordered_map<LinkedList<key_t, val_t>, std::vector<node_t>> indexAdd;
-    std::unordered_map<LinkedList<key_t, val_t>, std::vector<node_t>> indexRemove;
+    std::unordered_map<LinkedList<key_t, val_t>*, std::vector<node_t>> indexAdd;
+    std::unordered_map<LinkedList<key_t, val_t>*, std::vector<node_t>> indexRemove;
 
     void putIntoWriteSet(node_t node, node_t next, val_t val, bool deleted) {
         WriteElement<key_t, val_t>> we;
@@ -34,17 +34,24 @@ public:
         writeSet.put(node, we);
     }
 
-    void addToIndexAdd(LinkedList<key_t, val_t> list, node_t node) {
-      //TODO i assume that get build an empty vector if list is not found
+    void addToIndexAdd(LinkedList<key_t, val_t>* list, node_t node) {
+        auto nodes_it = indexAdd.find(list);
+        if(indexAdd.count(list) == 0) {
+            indexAdd[list] = std::vector<node_t>();
+        }
         std::vector<node_t>& nodes = indexAdd.get(list);
         nodes.add(node);
-        indexAdd.put(list, nodes);
+        //indexAdd.put(list, nodes);
     }
 
-    void addToIndexRemove(LinkedList<key_t, val_t> list, node_t node) {
+    void addToIndexRemove(LinkedList<key_t, val_t>* list, node_t node) {
+        auto nodes_it = indexRemove.find(list);
+        if(indexRemove.count(list) == 0) {
+            indexRemove[list] = std::vector<node_t>();
+        }
         std::vector<LNode>& nodes = indexRemove.get(list);
         nodes.add(node);
-        indexRemove.put(list, nodes);
+        //indexRemove.put(list, nodes);
     }
 
 };
