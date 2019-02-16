@@ -536,13 +536,7 @@ public:
     friend std::ostream& operator<< (std::ostream& stream, const LinkedList<key_t, val_t>& list) {
         auto cur = list.head;
         while(!cur.is_null()) {
-            stream << ", [" << cur->m_key << ": ";
-            if(cur->m_val) {
-                stream << *cur->m_val;
-            } else {
-                stream << "None";
-            }
-            stream << "] ";
+            stream << "," << cur;
             cur = cur->m_next;
         }
         return stream;

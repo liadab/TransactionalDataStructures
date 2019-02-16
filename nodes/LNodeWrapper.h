@@ -51,6 +51,17 @@ public:
         return hasher(m_node.get());
     }
 
+    friend std::ostream& operator<< (std::ostream& stream, const LNodeWrapper<key_t, val_t>& node) {
+        stream << "[" << node->m_key << ": ";
+        if(node->m_val) {
+            stream << *node->m_val;
+        } else {
+            stream << "None";
+        }
+        stream << "] ";
+        return stream;
+    }
+
 private:
     std::shared_ptr<LNode<key_t, val_t>> m_node;
 
