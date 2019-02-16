@@ -18,34 +18,52 @@ public:
      * @param head_node    assumed to be dummy node
      */
     Index(node_t head_node) :
-        m_head(std::make_shared<HeadIndex>(head_node, std::shared_ptr<IndexNode>(), std::shared_ptr<IndexNode>(), 1)),
+        m_head(std::make_shared<HeadIndex>(head_node, std::shared_ptr<HeadIndex>(), std::shared_ptr<IndexNode>(), 1)),
         m_rand(2, (1 << 30) - 1)
     { }
 
+    friend std::ostream& operator<< (std::ostream& stream, const Index<key_t, val_t>& index) {
+        auto cur = index.m_head;
+        while(cur) {
+            auto level = cur->m_level;
+            stream << "level: " << level;
+            auto r = cur->m_right;
+            while (r) {
+                stream << "\t" << cur->m_node << ",";
+//                if (r->m_down)
+//                    stream << "v";
+                r = r->m_right;
+            }
+            stream << "\tNone\n";
+            cur = cur->m_down;
+        }
+        return stream;
+    }
+
     void add(node_t node_to_add) {
-        if (node_to_add)
+        if (node_to_add.is_null())
             throw std::invalid_argument("NULL pointer node was given to Index::add");
         int rnd = m_rand.get();
         int level = 1, max;
         while (((rnd >>= 1) & 1) != 0)
             ++level;
         auto head = m_head;
-        int old_level = head.m_level;
+        int old_level = head->m_level;
         level = std::min(level, old_level + 1); // always try to grow by at most one level
         std::shared_ptr<IndexNode> idx = NULL;
         std::vector<std::shared_ptr<IndexNode>> idxs(level+1);
 
         for (int i = 1; i <= level; ++i)
-            idxs[i] = idx = std::make_shared<IndexNode>(node_to_add, idx, NULL);
-        if (old_level < level) {
+            idxs[i] = idx = std::make_shared<IndexNode>(node_to_add, idx, std::shared_ptr<IndexNode>());
+        if (old_level < level) { // try to grow
             for (; ; ) {
                 head = m_head;
-                int old_level = head.m_level;
+                int old_level = head->m_level;
                 if (level <= old_level) // lost race to add level
                     break;
                 auto newh = head;
-                node_t old_base = head.m_node;
-                for (int j = old_level + 1; j <= level; ++j) // maybe reduce level happened in between
+                node_t old_base = head->m_node;
+                for (int j = old_level + 1; j <= level; ++j) // maybe reduce level happened in between?
                     newh = std::make_shared<HeadIndex>(old_base, newh, idxs[j], j);
                 if (casHead(head, newh)) {
                     head = newh;
@@ -55,44 +73,33 @@ public:
             }
         }
 
-        // find insertion points and splice in splice:
+        // find insertion points and insert
+        bool found;
+        std::shared_ptr<IndexNode> curr = head;
+        auto r = curr->m_right;
+        auto t = idx;
+        auto j = head->m_level;
         for (int insertion_level = level; ; ) {
-            int j = head.m_level;
-            for (IndexNode q = head, r = q.m_right, t = idx; ; ) {
-                if (q == NULL || t == NULL)
-                    break; // TODO break slice
-                if (r != NULL) {
-                    node_t n = r.m_node;
-                    // compare before deletion check avoids needing recheck
-                    bool c = (node_to_add.m_key > n.m_key);
-                    if (n.m_val == NULL) {
-                        if (!q.unlink(r))
-                            break;
-                        r = q.m_right;
-                        continue;
-                    }
-                    if (c) {
-                        q = r;
-                        r = r.m_right;
-                        continue;
-                    }
-                }
-
-                if (j == insertion_level) {
-                    if (!q.link(r, t))
-                        break; // restart
-                    if (t.node.m_val == NULL) {
-                        break; // TODO splice;
-                    }
-                    if (--insertion_level == 0)
-                        break; // TODO splice;
-                }
-
-                if (--j >= insertion_level && j < level)
-                    t = t.m_down;
-                q = q.m_down;
-                r = q.m_right;
+            if (!curr || !t)
+                return;
+            for (; ; ) {
+                std::tie(found, curr, r) = walkLevel(curr, node_to_add);
+                if (found)
+                    break;
             }
+
+            if (j == insertion_level) {
+                if (!curr->link(r, t))
+                    continue; // link failed, restart
+                if (!t->m_node->m_val || --insertion_level == 0)
+                    return;
+            }
+
+            if (--j >= insertion_level && j < level)
+                t = t->m_down;
+            curr = curr->m_down;
+            if (curr)
+                r = curr->m_right;
         }
     }
 
@@ -110,7 +117,6 @@ private:
 
     class IndexNode {
     public:
-        // TODO: should I need to implement the UNSAFE mechanism?
         std::shared_ptr<IndexNode> m_right;
         const std::shared_ptr<IndexNode> m_down;
         const node_t m_node;
@@ -135,10 +141,24 @@ private:
          * @param new_succ the new successor
          * @return true if successful
          */
-        bool link(IndexNode succ, IndexNode new_succ) { // TODO: final??
-            LNode<key_t, val_t> node = m_node;
-            new_succ.m_right = succ;
-            return m_node.get_val() != NULL && casRight(succ, new_succ);
+        bool link(std::shared_ptr<IndexNode> succ, std::shared_ptr<IndexNode> new_succ) { // TODO: final??
+            auto node = m_node;
+            new_succ->m_right = succ;
+            return m_node->m_val && casRight(succ, new_succ);
+        }
+
+        /**
+         * Tries to CAS right field to skip over apparent successor
+         * succ.  Fails (forcing a retraversal by caller) if this node
+         * is known to be deleted.
+         *
+         * @param succ the expected current successor
+         * @return true if successful
+         */
+        bool unlink(std::shared_ptr<IndexNode> succ) { // TODO final
+            if (!succ)
+                return true;
+            return m_node->m_val && casRight(succ, succ->m_right);
         }
 
     private:
@@ -148,8 +168,11 @@ private:
     class HeadIndex : public IndexNode {
     public:
         const uint64_t m_level;
-        HeadIndex(node_t node, std::shared_ptr<IndexNode> down, std::shared_ptr<IndexNode> right, uint64_t level):
-                IndexNode(node, down, right),  m_level(level) { }
+        const std::shared_ptr<HeadIndex> m_down;
+        HeadIndex(node_t node, std::shared_ptr<HeadIndex> down, std::shared_ptr<IndexNode> right, uint64_t level):
+                IndexNode(node, down, right),
+                m_down(down),
+                m_level(level) { }
     };
 
     /**
@@ -229,6 +252,28 @@ private:
             casHead(h, d) && // try to set
             h.m_right != NULL) // recheck
             casHead(d, h);   // try to backout
+    }
+
+    std::tuple<bool, std::shared_ptr<IndexNode>, std::shared_ptr<IndexNode>> walkLevel
+            (std::shared_ptr<IndexNode> head, node_t node_to_add) {
+        if (!head)
+            throw std::invalid_argument("NULL pointer head was given to Index::walkOnLevel");
+        auto q = head;
+        auto r = q->m_right;
+        while (r) {
+            node_t n = r->m_node;
+            // compare before deletion check avoids needing recheck
+            bool c = (node_to_add->m_key > n->m_key);
+            if (!n->m_val) { // need to unlink deleted node
+                if (!q->unlink(r))
+                    return std::make_tuple(false, std::shared_ptr<IndexNode>(), std::shared_ptr<IndexNode>());
+            } else if (c)
+                q = r;
+            else
+                break;
+            r = q->m_right;
+        }
+        return std::make_tuple(true, q, r);
     }
 
     node_t getPred(node_t node) {
