@@ -389,7 +389,7 @@ public:
     }
 
     std::optional<val_t> removeSingleton(key_t key) {
-        node_t n(key_t);
+        node_t n(std::move(key));
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
         while (true) {
             auto[found, pred, next] = find_node_singelton(localStorage, n);
@@ -413,8 +413,8 @@ public:
                 std::optional<val_t> valToRet;
                 if (next->tryLock()) {
                     toRemove = next;
-                    valToRet = toRemove.val;
-                    toRemove.val = std::nullopt; // for Index
+                    valToRet = toRemove->m_val;
+                    toRemove->m_val = std::nullopt; // for Index
                     pred->m_next = pred->m_next->m_next;
                     auto ver = m_tx->getVersion();
                     toRemove->setVersionAndDeletedAndSingleton(ver, true, true);
