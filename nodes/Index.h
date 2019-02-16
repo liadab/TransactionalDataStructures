@@ -29,9 +29,7 @@ public:
             stream << "level: " << level;
             auto r = cur->m_right;
             while (r) {
-                stream << "\t" << cur->m_node << ",";
-//                if (r->m_down)
-//                    stream << "v";
+                stream << "\t" << r->m_node << ",";
                 r = r->m_right;
             }
             stream << "\tNone\n";
@@ -53,8 +51,10 @@ public:
         std::shared_ptr<IndexNode> idx = NULL;
         std::vector<std::shared_ptr<IndexNode>> idxs(level+1);
 
-        for (int i = 1; i <= level; ++i)
+        for (int i = 1; i <= level; ++i) {
             idxs[i] = idx = std::make_shared<IndexNode>(node_to_add, idx, std::shared_ptr<IndexNode>());
+            std::cout << "new index created:" << idx->m_node << std::endl;
+        }
         if (old_level < level) { // try to grow
             for (; ; ) {
                 head = m_head;
@@ -104,10 +104,10 @@ public:
     }
 
     void remove(node_t node) {
-        if (node == NULL)
+        if (node.is_null())
             throw std::invalid_argument("NULL pointer node was given to Index::remove");
         findPredecessor(node); // clean index
-        if (m_head.m_right == NULL)
+        if (!m_head->m_right)
             tryReduceLevel();
     }
 
@@ -128,6 +128,7 @@ private:
             std::lock_guard<std::mutex> l(m_lock);
             if (m_right == cmp) {
                 m_right = val;
+                std::cout << "new right value: " << m_right->m_node << std::endl;
                 return true;
             } return false;
         }
@@ -142,7 +143,6 @@ private:
          * @return true if successful
          */
         bool link(std::shared_ptr<IndexNode> succ, std::shared_ptr<IndexNode> new_succ) { // TODO: final??
-            auto node = m_node;
             new_succ->m_right = succ;
             return m_node->m_val && casRight(succ, new_succ);
         }
@@ -196,26 +196,22 @@ private:
      */
     node_t findPredecessor(node_t node) {
         while (true) {
-            for (IndexNode q = m_head, r = q.m_right, d; ; ) {
-                if (r != NULL) {
-                    node_t n = r.m_node;
-                    if (n.m_val == NULL) { // this node is deleted - needs to be unlinked
-                        if (!q.unlink(r))
-                            break;           // restart
-                        r = q.m_right;         // reread r
-                        continue;
-                    }
-                    if (node.m_key > n.m_key) { // continue in the same level
-                        q = r;
-                        r = r.m_right;
-                        continue;
-                    }
-                }
-                if ((d = q.m_down) == NULL) // no more levels left - we found the closest one
-                    return q.m_node;
-                q = d;
-                r = d.m_right;
+            bool found;
+            auto head = m_head;
+            std::shared_ptr<IndexNode> curr = head;
+            auto r = curr->m_right;
+            auto j = head->m_level;
+            auto d = curr->m_down;
+
+            for (; ; ) {
+                std::tie(found, curr, r) = walkLevel(curr, node);
+                if (found)
+                    break;
             }
+            if (!(d = curr->m_down)) // no more levels left - we found the closest one
+                return curr->m_node;
+            curr = d;
+            r = d->m_right;
         }
     }
 
@@ -240,17 +236,16 @@ private:
      * reduction.
      */
     void tryReduceLevel() {
-        HeadIndex h = m_head; // TODO shared ptr way?
-        HeadIndex d;
-        HeadIndex e;
-        if (h.m_level > 3 &&
-            (d = (HeadIndex) h.m_down) != NULL &&
-            (e = (HeadIndex) d.m_down) != NULL &&
-            e.m_right == NULL &&
-            d.m_right == NULL &&
-            h.m_right == NULL &&
+        auto h = m_head; // TODO shared ptr way?
+        auto d = h->m_down;
+        auto e = d->m_down;
+        if (h->m_level > 3 &&
+            d && e &&
+            !e->m_right &&
+            !d->m_right &&
+            !h->m_right &&
             casHead(h, d) && // try to set
-            h.m_right != NULL) // recheck
+            h->m_right) // recheck
             casHead(d, h);   // try to backout
     }
 
