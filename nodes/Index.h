@@ -1,6 +1,8 @@
 # pragma once
 
 #include <climits>
+#include <mutex>
+
 #include "utils.h"
 #include "LNode.h"
 #include "LNodeWrapper.h"
@@ -12,9 +14,9 @@ public:
     using node_t = LNodeWrapper<key_t,val_t>;
 
     Index(node_t head_node) {
-        head_node->m_val = BASE_HEADER;
+        head_node->m_val = std::numeric_limits<val_t>::min();
         m_head = new HeadIndex(head_node, NULL, NULL, 1);
-        m_rand = new Rand(2, 2^31 - 1); // distribution 
+        m_rand = new Rand(2, 1 << 31 - 1); // distribution
     }
 
     void add(LNode<key_t, val_t> node_to_add) {
@@ -102,7 +104,6 @@ public:
     }
 
 private:
-    static val_t BASE_HEADER = new val_t(); // TODO
     Rand m_rand;
 
     class IndexNode {
@@ -140,20 +141,16 @@ private:
 
     class HeadIndex : public IndexNode {
     public:
-        uint64_t m_level; //TODO: final?
-
+        const uint64_t m_level; //TODO: final?
         HeadIndex(LNode<key_t, val_t> node, IndexNode down, IndexNode right, uint64_t level):
-                IndexNode(node, down, right) {
-            m_level = level;
-        }
+                IndexNode(node, down, right),  m_level(level) { }
     };
 
     /**
      * compareAndSet head node
      */
-    bool casHead(HeadIndex cmp, HeadIndex val) {
-        // TODO: ?
-        return UNSAFE.compareAndSwapObject(this, headOffset, cmp, val);
+    bool casHead(std::shared_ptr<HeadIndex> cmp, std::shared_ptr<HeadIndex> val) {
+        return m_head.compare_exchange_strong(cmp, val);
     }
 
     /**
@@ -234,5 +231,5 @@ private:
         }
     }
 
-    HeadIndex m_head; // TODO: volatile?
+    std::atomic<std::shared_ptr<HeadIndex>> m_head; // TODO: volatile?
 };

@@ -27,7 +27,7 @@ public:
     }
 
     bool is_null() {
-        return static_cast<bool>(m_node);
+        return !static_cast<bool>(m_node);
     }
 
     LNode<key_t, val_t>* operator->() {

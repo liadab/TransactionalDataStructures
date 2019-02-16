@@ -34,7 +34,7 @@ public:
     node_t head;
     index_t index;
 
-    LinkedList(std::shared_ptr<TX> tx) :
+    explicit LinkedList(std::shared_ptr<TX> tx) :
         m_tx(std::move(tx)),
         head(std::numeric_limits<key_t>::min()),
         index(head)
@@ -136,7 +136,7 @@ public:
             if (pred->isLockedOrDeleted()) {
                 continue;
             }
-            while (next.is_null()) {
+            while (!next.is_null()) {
                 if (next->isLockedOrDeleted()) {
                     // when we encounter a locked node while traversing the list
                     // we have to start over
