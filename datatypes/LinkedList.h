@@ -183,7 +183,7 @@ public:
         auto next = getNext(pred, localStorage);
         bool found = false;
 
-        while (next.is_null()) {
+        while (next.is_not_null()) {
             if (next->m_key == n->m_key) {
                 return std::make_tuple(true, pred, next);
             } else if (next->m_key > n->m_key) {
@@ -274,7 +274,7 @@ public:
         auto [found, pred, next] = find_node(localStorage, n);
 
         if (found) {
-            auto we_it = localStorage.writeSet.find(pred);
+            auto we_it = localStorage.writeSet.find(next);
             if (we_it != localStorage.writeSet.end()) {
                 const auto& we = we_it->second;
                 localStorage.putIntoWriteSet(next, we.next, val, we.deleted);
@@ -527,6 +527,12 @@ public:
         // add to read set
         localStorage.readSet.emplace(pred);
         if(found) {
+            //TODO: this was a bug in java implmention we also need to check if there is a value update in the write set
+            auto we_it = localStorage.writeSet.find(next);
+            if (we_it != localStorage.writeSet.end()) {
+                const auto& we = we_it->second;
+                return we.val;
+            }
             assert (next->m_key == key);
             return next->m_val;
         }

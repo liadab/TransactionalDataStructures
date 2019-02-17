@@ -52,13 +52,17 @@ public:
     }
 
     friend std::ostream& operator<< (std::ostream& stream, const LNodeWrapper<key_t, val_t>& node) {
-        stream << "[" << node->m_key << ": ";
-        if(node->m_val) {
-            stream << *node->m_val;
+        if(!node.m_node) {
+            stream << "null";
         } else {
-            stream << "None";
+            stream << "[" << node->m_key << ": ";
+            if (node->m_val) {
+                stream << *node->m_val;
+            } else {
+                stream << "None";
+            }
+            stream << "] ";
         }
-        stream << "] ";
         return stream;
     }
 
