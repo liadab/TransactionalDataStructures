@@ -1,3 +1,12 @@
+/* TODO list
+ * make constructor init head's val as min
+ * change head mechanism - always had one pointer that points to the downmost head (will never be deleted),
+ *      and make the heads list a two-sided list
+ * insert from buttom up, so that linearization won't fail
+ *      (when I have up most nodes point to something which isn't even in the list, such as in an insertion which fails)
+ * in remove no one checks what happens to the upper node that points to me (yet it is supposed to be removed as well..)
+ * */
+
 # pragma once
 
 #include <climits>
@@ -20,16 +29,26 @@ public:
     Index(node_t head_node) :
         m_head(std::make_shared<HeadIndex>(head_node, std::shared_ptr<HeadIndex>(), std::shared_ptr<IndexNode>(), 1)),
         m_rand(2, (1 << 30) - 1)
-    { }
+    {
+        if (!m_head->m_down)
+            std::cout << "down is null" << std::endl;
+        else
+            std::cout << "down isnot!! null" << std::endl;
+    }
 
     friend std::ostream& operator<< (std::ostream& stream, const Index<key_t, val_t>& index) {
         auto cur = index.m_head;
         while(cur) {
             auto level = cur->m_level;
             stream << "level: " << level;
-            auto r = cur->m_right;
+            std::shared_ptr<IndexNode> r = cur;
             while (r) {
-                stream << "\t" << r->m_node << ",";
+                stream << "\t" << r->m_node;
+                if (r->m_down)
+                    stream << "v";
+                else
+                    stream << "x";
+                stream << ",";
                 r = r->m_right;
             }
             stream << "\tNone\n";
@@ -38,6 +57,11 @@ public:
         return stream;
     }
 
+    /**
+     * adds node to the index
+     *
+     * @param node_to_add    the node to be added
+     */
     void add(node_t node_to_add) {
         if (node_to_add.is_null())
             throw std::invalid_argument("NULL pointer node was given to Index::add");
@@ -53,7 +77,7 @@ public:
 
         for (int i = 1; i <= level; ++i) {
             idxs[i] = idx = std::make_shared<IndexNode>(node_to_add, idx, std::shared_ptr<IndexNode>());
-            std::cout << "new index created:" << idx->m_node << std::endl;
+//            std::cout << "new index created:" << idx->m_node << std::endl; TODO delete/ add debug flag
         }
         if (old_level < level) { // try to grow
             for (; ; ) {
@@ -74,7 +98,7 @@ public:
         }
 
         // find insertion points and insert
-        bool found;
+        bool finish;
         std::shared_ptr<IndexNode> curr = head;
         auto r = curr->m_right;
         auto t = idx;
@@ -83,8 +107,8 @@ public:
             if (!curr || !t)
                 return;
             for (; ; ) {
-                std::tie(found, curr, r) = walkLevel(curr, node_to_add);
-                if (found)
+                std::tie(finish, curr, r) = walkLevel(curr, node_to_add);
+                if (finish)
                     break;
             }
 
@@ -103,9 +127,19 @@ public:
         }
     }
 
+    /**
+     * removes node from the index.
+     * node's val assumed to be null
+     *
+     * @param node    the node to be removed
+     */
     void remove(node_t node) {
         if (node.is_null())
             throw std::invalid_argument("NULL pointer node was given to Index::remove");
+        if (node->m_val != NULL)
+            // TODO delete this
+            throw std::invalid_argument("Index::remove got a non-NULL node to remove");
+        std::cout << "removing key:" << node->m_key << std::endl;
         findPredecessor(node); // clean index
         if (!m_head->m_right)
             tryReduceLevel();
@@ -128,7 +162,7 @@ private:
             std::lock_guard<std::mutex> l(m_lock);
             if (m_right == cmp) {
                 m_right = val;
-                std::cout << "new right value: " << m_right->m_node << std::endl;
+//                std::cout << "new right value: " << m_right->m_node << std::endl; TODO add debug
                 return true;
             } return false;
         }
@@ -195,24 +229,23 @@ private:
      * @return a predecessor of key
      */
     node_t findPredecessor(node_t node) {
-        while (true) {
-            bool found;
-            auto head = m_head;
-            std::shared_ptr<IndexNode> curr = head;
-            auto r = curr->m_right;
-            auto j = head->m_level;
-            auto d = curr->m_down;
-
-            for (; ; ) {
-                std::tie(found, curr, r) = walkLevel(curr, node);
-                if (found)
-                    break;
+        bool finish;
+        std::shared_ptr<IndexNode> curr = m_head;
+        auto r = curr->m_right;
+        auto d = curr->m_down;
+        auto level = m_head->m_level;
+        for (int i = 0; i < level + 1; ++i) {
+            for (;;) {
+                std::tie(finish, curr, r) = walkLevel(curr, node);
+                if (finish) break;
             }
             if (!(d = curr->m_down)) // no more levels left - we found the closest one
                 return curr->m_node;
             curr = d;
-            r = d->m_right;
+            r = curr->m_right;
+            std::cout << "down to:" << curr->m_node << std::endl;
         }
+        throw std::runtime_error("Index::findPredecessor got down too many levels??");
     }
 
     /**
@@ -249,18 +282,25 @@ private:
             casHead(d, h);   // try to backout
     }
 
+    /**
+     * walk on one level, starts with start, until the predecessor (smaller or equal) of node
+     *
+     * @param start the node to start the search from
+     * @param node_to_add node to search
+     * @return a tuple: is the search was finished (or needs to restart), predecessor, predecessor's right
+     * */
     std::tuple<bool, std::shared_ptr<IndexNode>, std::shared_ptr<IndexNode>> walkLevel
-            (std::shared_ptr<IndexNode> head, node_t node_to_add) {
-        if (!head)
+            (std::shared_ptr<IndexNode> start, node_t node_to_add) {
+        if (!start)
             throw std::invalid_argument("NULL pointer head was given to Index::walkOnLevel");
-        auto q = head;
+        auto q = start;
         auto r = q->m_right;
         while (r) {
             node_t n = r->m_node;
             // compare before deletion check avoids needing recheck
             bool c = (node_to_add->m_key > n->m_key);
             if (!n->m_val) { // need to unlink deleted node
-                if (!q->unlink(r))
+                if (!q->unlink(r)) // need to restart walk..
                     return std::make_tuple(false, std::shared_ptr<IndexNode>(), std::shared_ptr<IndexNode>());
             } else if (c)
                 q = r;
@@ -268,6 +308,8 @@ private:
                 break;
             r = q->m_right;
         }
+        if (!r)
+            std::cout << "walk got to a null right" << std::endl;
         return std::make_tuple(true, q, r);
     }
 
