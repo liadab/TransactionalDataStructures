@@ -63,12 +63,12 @@ public:
     node_t getPred(node_t n, LocalStorage<key_t, val_t>& localStorage) {
         node_t pred = index.getPred(n);
         while (true) {
-            if (pred->isLocked() || pred->getVersion() > localStorage.readVersion) {
+            if (pred->isLocked() || pred->getVersion() > m_tx->get_local_transaction().readVersion) {
                 // abort TX
                 localStorage.TX = false;
                 throw TxAbortException();
             }
-            if (pred->isSameVersionAndSingleton(localStorage.readVersion)) {
+            if (pred->isSameVersionAndSingleton(m_tx->get_local_transaction().readVersion)) {
                 // TODO in the case of a thread running singleton and then TX
                 // this TX will abort once but for no reason
                 m_tx->incrementAndGetVersion();
@@ -110,12 +110,12 @@ public:
             throw TxAbortException();
         }
         auto next = safe_get_next(n);
-        if (n->isLocked() || n->getVersion() > localStorage.readVersion) {
+        if (n->isLocked() || n->getVersion() > m_tx->get_local_transaction().readVersion) {
             // abort TX
             localStorage.TX = false;
             throw TxAbortException();
         }
-        if (n->isSameVersionAndSingleton(localStorage.readVersion)) {
+        if (n->isSameVersionAndSingleton(m_tx->get_local_transaction().readVersion)) {
             m_tx->incrementAndGetVersion();
             localStorage.TX = false;
             throw TxAbortException();

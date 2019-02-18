@@ -3,7 +3,7 @@
 
 TEST(LinkedListTransction, putOne) {
     std::shared_ptr<TX> tx = std::make_shared<TX>();
-    tx->TXbegin<size_t, size_t>();
+    tx->TXbegin();
     LinkedList<size_t, size_t> l(tx);
     auto r1 = l.put(5, 3);
     EXPECT_EQ(l.get(5), 3);
@@ -15,7 +15,7 @@ TEST(LinkedListTransction, putOne) {
 
 TEST(LinkedListTransction, removeOne) {
     std::shared_ptr<TX> tx = std::make_shared<TX>();
-    tx->TXbegin<size_t, size_t>();
+    tx->TXbegin();
     LinkedList<size_t, size_t> l(tx);
     auto r1 = l.remove(5);
     EXPECT_EQ(r1, std::nullopt);
@@ -27,7 +27,7 @@ TEST(LinkedListTransction, removeOne) {
 
 TEST(LinkedListTransction, putMany) {
     std::shared_ptr<TX> tx = std::make_shared<TX>();
-    tx->TXbegin<size_t, size_t>();
+    tx->TXbegin();
     LinkedList<size_t, size_t> l(tx);
     l.put(5, 3);
     l.put(1, 4);

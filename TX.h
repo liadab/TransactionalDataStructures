@@ -1,10 +1,11 @@
 #pragma once
 
 #include <atomic>
-
+#include "LocalTransaction.h"
 class TxAbortException {
 
 };
+
 class TX {
 public:
     std::atomic<uint64_t> gvc;
@@ -30,15 +31,19 @@ public:
         return lStorage;
     }
 
-    template <typename key_t, typename val_t>
+    LocalTransaction& get_local_transaction() const {
+        static thread_local  LocalTransaction transaction;
+        return transaction;
+    }
+
     void TXbegin() {
         if (DEBUG_MODE_TX) {
             std::cout << "begin transction" << std::endl;
         }
 
-        auto& localStorage = get_local_storge<key_t, val_t>();
-        localStorage.TX = true;
-        localStorage.readVersion = getVersion();
+        auto& local_transaction = get_local_transaction();
+        local_transaction.TX = true;
+        local_transaction.readVersion = getVersion();
     }
 
 };
