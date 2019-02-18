@@ -65,14 +65,14 @@ public:
         while (true) {
             if (pred->isLocked() || pred->getVersion() > m_tx->get_local_transaction().readVersion) {
                 // abort TX
-                localStorage.TX = false;
+                m_tx->get_local_transaction().TX = false;
                 throw TxAbortException();
             }
             if (pred->isSameVersionAndSingleton(m_tx->get_local_transaction().readVersion)) {
                 // TODO in the case of a thread running singleton and then TX
                 // this TX will abort once but for no reason
                 m_tx->incrementAndGetVersion();
-                localStorage.TX = false;
+                m_tx->get_local_transaction().TX = false;
                 throw TxAbortException();
             }
             auto we_it = localStorage.writeSet.find(pred);
@@ -106,18 +106,18 @@ public:
         // we first see if locked, then read next and then re-check locked
         if (n->isLocked()) {
             // abort TX
-            localStorage.TX = false;
+            m_tx->get_local_transaction().TX = false;
             throw TxAbortException();
         }
         auto next = safe_get_next(n);
         if (n->isLocked() || n->getVersion() > m_tx->get_local_transaction().readVersion) {
             // abort TX
-            localStorage.TX = false;
+            m_tx->get_local_transaction().TX = false;
             throw TxAbortException();
         }
         if (n->isSameVersionAndSingleton(m_tx->get_local_transaction().readVersion)) {
             m_tx->incrementAndGetVersion();
-            localStorage.TX = false;
+            m_tx->get_local_transaction().TX = false;
             throw TxAbortException();
         }
         return next;
@@ -263,13 +263,13 @@ public:
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
 
         // SINGLETON
-        if (!localStorage.TX) {
+        if (!m_tx->get_local_transaction().TX) {
             return putSingleton(key, val);
         }
 
         // TX
 
-        localStorage.readOnly = false;
+        m_tx->get_local_transaction().readOnly = false;
         node_t n(std::move(key), std::move(val));
         auto [found, pred, next] = find_node(localStorage, n);
 
@@ -365,12 +365,12 @@ public:
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
 
         // SINGLETON
-        if (!localStorage.TX) {
+        if (!m_tx->get_local_transaction().TX) {
             return putIfAbsentSingleton(key, val);
         }
 
         // TX
-        localStorage.readOnly = false;
+        m_tx->get_local_transaction().readOnly = false;
         node_t n(std::move(key), std::move(val));
         auto [found, pred, next] = find_node(localStorage, n);
 
@@ -447,13 +447,13 @@ public:
     std::optional<val_t> remove(key_t key) {
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
         // SINGLETON
-        if (!localStorage.TX) {
+        if (!m_tx->get_local_transaction().TX) {
             return removeSingleton(key);
         }
 
         // TX
 
-        localStorage.readOnly = false;
+        m_tx->get_local_transaction().readOnly = false;
         node_t n(std::move(key));
         auto [found, pred, next] = find_node(localStorage, n);
         // add to read set
@@ -488,7 +488,7 @@ public:
     bool containsKey(key_t key) {
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
         // SINGLETON
-        if (!localStorage.TX) {
+        if (!m_tx->get_local_transaction().TX) {
             return containsKeySingleton(key);
         }
         // TX
@@ -511,7 +511,7 @@ public:
     std::optional<val_t> get(key_t key) {
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
         // SINGLETON
-        if (!localStorage.TX) {
+        if (!m_tx->get_local_transaction().TX) {
             return getSingleton(key);
         }
 

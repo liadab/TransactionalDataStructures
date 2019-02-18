@@ -16,11 +16,6 @@ class LocalStorage {
 public:
     using node_t = LNodeWrapper<key_t,val_t>;
 
-
-    uint64_t readVersion = 0L;
-    uint64_t writeVersion = 0L; // for debug
-    bool TX = false;
-    bool readOnly = true;
     //TODO add when queue is implmentd
     //std::map<Queue, LocalQueue> queueMap = new HashMap<Queue, LocalQueue>();
     std::unordered_map<node_t, WriteElement<key_t, val_t>> writeSet;
