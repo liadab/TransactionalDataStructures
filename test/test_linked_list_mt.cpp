@@ -12,6 +12,7 @@ public:
             func1();
             stop_main = false;
             while(stop_thread);
+            func2();
         });
         while(stop_main);
     }
@@ -36,9 +37,12 @@ TEST(LinkedListTransctionMT, putOne) {
         tx->TXbegin();
         auto r1 = l.put(5, 3);
     },
-            [&l] {
-        ASSERT_THROW(l.get(5), TxAbortException);
+            [&l, tx] {
+        tx->TXend<size_t, size_t>();
     });
-    auto r2 = l.put(5, 4);
+    auto r2 = l.get(5);
+    EXPECT_EQ(r2, std::nullopt);
+    //now there will be a commit
     t1.run_thread_set_2();
+    ASSERT_THROW(l.get(5), TxAbortException);
 }

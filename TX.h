@@ -2,8 +2,12 @@
 
 #include <atomic>
 #include "LocalTransaction.h"
-class TxAbortException {
-
+class TxAbortException : public std::exception
+{
+    const char * what () const throw ()
+    {
+        return "TX abort";
+    }
 };
 
 class TX {
@@ -22,7 +26,7 @@ public:
     }
 
     uint64_t incrementAndGetVersion() {
-        return gvc++;
+        return ++gvc;
     }
 
     template <typename key_t, typename val_t>
@@ -59,20 +63,21 @@ public:
         auto& localStorage = get_local_storge<key_t, val_t>();
         auto& local_transaction = get_local_transaction();
 
-        if (!localStorage.TX) {
+        if (!local_transaction.TX) {
             abort = true;
         }
 
         // locking write set
         auto& writeSet = localStorage.writeSet;
-        std::vector<node_t> lockedLNodes;
+        std::unordered_set<node_t> lockedLNodes;
         if (!abort) {
-            for (auto& [node, we] : writeSet) {
+            for (auto node_and_we : writeSet) {
+                node_t node = node_and_we.first;
                 if (!node->tryLock()) {
                     abort = true;
                     break;
                 }
-                lockedLNodes.add(node);
+                lockedLNodes.emplace(std::move(node));
             }
         }
 
@@ -103,17 +108,17 @@ public:
 
         if (!abort) {
 
-            for (auto& node : readSet) {
-                if (!lockedLNodes.contains(node) && node.isLocked()) {
+            for (auto node : readSet) {
+                if (lockedLNodes.count(node) == 0 && node->isLocked()) {
                     // someone else holds the lock
                     abort = true;
                     break;
                 } else if (node->getVersion() > local_transaction.readVersion) {
                     abort = true;
                     break;
-                } else if (node.getVersion() == local_transaction.readVersion && node.isSingleton()) {
+                } else if (node->getVersion() == local_transaction.readVersion && node->isSingleton()) {
                     incrementAndGetVersion(); // increment GVC
-                    node.setSingleton(false);
+                    node->setSingleton(false);
                     abort = true;
                     break;
                 }
@@ -152,16 +157,17 @@ public:
         // commit
         if (!abort && !local_transaction.readOnly) {
             // LinkedList
-
-            for (auto& [node, we] : writeSet) {
-                node.next = we.next;
-                node.val = we.val; // when node val changed because of put
+            for (auto node_and_we : writeSet) {
+                node_t node = node_and_we.first;
+                auto we =  node_and_we.second;
+                node->m_next = we.next;
+                node->m_val = we.val; // when node val changed because of put
                 if (we.deleted) {
-                    node.setDeleted(true);
-                    node.val = std::nullopt; // for index
+                    node->setDeleted(true);
+                    node->m_val = std::nullopt; // for index
                 }
-                node.setVersion(writeVersion);
-                node.setSingleton(false);
+                node->setVersion(writeVersion);
+                node->setSingleton(false);
             }
         }
 
@@ -187,7 +193,7 @@ public:
 //        }
 
         // release locks, even if abort
-        for (auto &node : lockedLNodes) {
+        for (auto node : lockedLNodes) {
             node->unlock();
         }
 
@@ -204,7 +210,7 @@ public:
 //        }
 
         // update index
-        if (!abort && !localStorage.readOnly) {
+        if (!abort && !local_transaction.readOnly) {
             // adding to index
             auto& indexMap = localStorage.indexAdd;
             for (auto& [list, nodes] : indexMap) {
@@ -222,7 +228,7 @@ public:
 
         // cleanup
 
-        localStorage.queueMap.clear();
+//        localStorage.queueMap.clear();
         localStorage.writeSet.clear();
         localStorage.readSet.clear();
         localStorage.indexAdd.clear();
