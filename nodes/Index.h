@@ -27,17 +27,14 @@ public:
      * @param head_node    assumed to be dummy node
      */
     Index(node_t head_node) :
-        m_head(std::make_shared<HeadIndex>(head_node, std::shared_ptr<HeadIndex>(), std::shared_ptr<IndexNode>(), 1)),
+        m_head_bottom(std::make_shared<HeadIndex>(head_node, std::shared_ptr<HeadIndex>(), std::shared_ptr<IndexNode>(), 1)),
         m_rand(2, (1 << 30) - 1)
     {
-        if (!m_head->m_down)
-            std::cout << "down is null" << std::endl;
-        else
-            std::cout << "down isnot!! null" << std::endl;
+        m_head_top = m_head_bottom;
     }
 
     friend std::ostream& operator<< (std::ostream& stream, const Index<key_t, val_t>& index) {
-        auto cur = index.m_head;
+        auto cur = index.m_head_top;
         while(cur) {
             auto level = cur->m_level;
             stream << "level: " << level;
@@ -54,6 +51,8 @@ public:
             stream << "\tNone\n";
             cur = cur->m_down;
         }
+        cur = index.m_head_bottom;
+        stream << "bottom level: " << cur->m_level << " node: " << cur->m_node;
         return stream;
     }
 
@@ -69,62 +68,57 @@ public:
         int level = 1, max;
         while (((rnd >>= 1) & 1) != 0)
             ++level;
-        auto head = m_head;
-        int old_level = head->m_level;
+        int old_level = m_head_top->m_level;
         level = std::min(level, old_level + 1); // always try to grow by at most one level
         std::shared_ptr<IndexNode> idx = NULL;
         std::vector<std::shared_ptr<IndexNode>> idxs(level+1);
 
+        // create the new nodes
         for (int i = 1; i <= level; ++i) {
             idxs[i] = idx = std::make_shared<IndexNode>(node_to_add, idx, std::shared_ptr<IndexNode>());
 //            std::cout << "new index created:" << idx->m_node << std::endl; TODO delete/ add debug flag
         }
-        if (old_level < level) { // try to grow
-            for (; ; ) {
-                head = m_head;
-                int old_level = head->m_level;
-                if (level <= old_level) // lost race to add level
-                    break;
-                auto newh = head;
-                node_t old_base = head->m_node;
-                for (int j = old_level + 1; j <= level; ++j) // maybe reduce level happened in between?
-                    newh = std::make_shared<HeadIndex>(old_base, newh, idxs[j], j);
-                if (casHead(head, newh)) {
-                    head = newh;
-                    idx = idxs[level = old_level]; // level is changed because idxs in all levels b/w old_level to level was already insert
-                    break;
-                }
-            }
-        }
 
-        // find insertion points and insert
+        // find insertion points in the existing levels - from bottom up
         bool finish;
+        auto head = m_head_bottom;
         std::shared_ptr<IndexNode> curr = head;
         auto r = curr->m_right;
-        auto t = idx;
-        auto j = head->m_level;
-        for (int insertion_level = level; ; ) {
-            if (!curr || !t)
-                return;
-            for (; ; ) {
-                std::tie(finish, curr, r) = walkLevel(curr, node_to_add);
+        auto t = idxs[0];
+        int insertion_level = 0;
+        while (head && head->m_level <= level) {
+            for (; ; ) { // continously try to insert in level
+                std::tie(finish, curr, r) = walkLevel(head, node_to_add);
                 if (finish)
                     break;
             }
-
-            if (j == insertion_level) {
-                if (!curr->link(r, t))
-                    continue; // link failed, restart
-                if (!t->m_node->m_val || --insertion_level == 0)
-                    return;
-            }
-
-            if (--j >= insertion_level && j < level)
-                t = t->m_down;
-            curr = curr->m_down;
-            if (curr)
-                r = curr->m_right;
+            t = idxs[head->m_level];
+            if (!curr->link(r, t))
+                continue; // link failed, restart
+            if (!t->m_node->m_val)
+                return; // node is exactly being deleted, abort
+            head = head->m_up;
+            insertion_level++;
         }
+
+        if (insertion_level == level) // no need to continue
+            return;
+
+        old_level = m_head_top->m_level; // maybe in the meanwhile things have changed..
+        if (old_level < level) {
+            // try to grow - as before only by one level at a time!
+            head = m_head_top;
+            old_level = head->m_level;
+            if (level <= old_level) // lost race to add level
+                return;
+            node_t old_base = head->m_node;
+            auto newh = std::make_shared<HeadIndex>(old_base, head, idxs[old_level + 1], old_level + 1);
+            if (casHead(head, newh, true)) {
+                head = newh;
+                idx = idxs[level = old_level]; // level is changed because idxs in all levels b/w old_level to level was already insert
+                return;
+            }
+        } // else - maybe we lost some insertion level, not so bad..
     }
 
     /**
@@ -141,7 +135,7 @@ public:
             throw std::invalid_argument("Index::remove got a non-NULL node to remove");
         std::cout << "removing key:" << node->m_key << std::endl;
         findPredecessor(node); // clean index
-        if (!m_head->m_right)
+        if (!m_head_top->m_right)
             tryReduceLevel();
     }
 
@@ -203,21 +197,40 @@ private:
     public:
         const uint64_t m_level;
         const std::shared_ptr<HeadIndex> m_down;
+        std::shared_ptr<HeadIndex> m_up; // TODO: volatile?
         HeadIndex(node_t node, std::shared_ptr<HeadIndex> down, std::shared_ptr<IndexNode> right, uint64_t level):
                 IndexNode(node, down, right),
                 m_down(down),
+                m_up(std::shared_ptr<HeadIndex>()),
                 m_level(level) { }
     };
 
     /**
      * compareAndSet head node
      */
-    bool casHead(std::shared_ptr<HeadIndex> cmp, std::shared_ptr<HeadIndex> val) {
+    bool casHead(std::shared_ptr<HeadIndex> cmp, std::shared_ptr<HeadIndex> val, bool up) {
         std::lock_guard<std::mutex> l(m_lock);
-        if (m_head == cmp) {
-            m_head = val;
+        if (m_head_top == cmp) {
+            if (up) _levelUp(cmp, val);
+            else _levelDown(cmp, val);
             return true;
         } return false;
+    }
+
+    /**
+     * compareAndSet head node, put val the upmost head
+     */
+    bool _levelUp(std::shared_ptr<HeadIndex> cmp, std::shared_ptr<HeadIndex> val) {
+        // TODO: change assert
+        assert(val->m_down == cmp);
+        assert(!val->m_up);
+        cmp->m_up = val;
+        m_head_top = val;
+    }
+
+    bool _levelDown(std::shared_ptr<HeadIndex> cmp, std::shared_ptr<HeadIndex> val) {
+        val->m_up = std::shared_ptr<HeadIndex>();
+        m_head_top = val;
     }
 
     /**
@@ -230,15 +243,16 @@ private:
      */
     node_t findPredecessor(node_t node) {
         bool finish;
-        std::shared_ptr<IndexNode> curr = m_head;
+        std::shared_ptr<IndexNode> curr = m_head_top;
         auto r = curr->m_right;
         auto d = curr->m_down;
-        auto level = m_head->m_level;
+        auto level = m_head_top->m_level;
         for (int i = 0; i < level + 1; ++i) {
             for (;;) {
                 std::tie(finish, curr, r) = walkLevel(curr, node);
                 if (finish) break;
             }
+            // TODO: what if d was exactly unlinked from the list? can it happen?
             if (!(d = curr->m_down)) // no more levels left - we found the closest one
                 return curr->m_node;
             curr = d;
@@ -269,7 +283,7 @@ private:
      * reduction.
      */
     void tryReduceLevel() {
-        auto h = m_head; // TODO shared ptr way?
+        auto h = m_head_top; // TODO shared ptr way?
         auto d = h->m_down;
         auto e = d->m_down;
         if (h->m_level > 3 &&
@@ -277,9 +291,9 @@ private:
             !e->m_right &&
             !d->m_right &&
             !h->m_right &&
-            casHead(h, d) && // try to set
+            casHead(h, d, false) && // try to set
             h->m_right) // recheck
-            casHead(d, h);   // try to backout
+            casHead(d, h, true);   // try to backout
     }
 
     /**
@@ -302,14 +316,11 @@ private:
             if (!n->m_val) { // need to unlink deleted node
                 if (!q->unlink(r)) // need to restart walk..
                     return std::make_tuple(false, std::shared_ptr<IndexNode>(), std::shared_ptr<IndexNode>());
-            } else if (c)
+            } else if (c) {
                 q = r;
-            else
-                break;
+            } else break;
             r = q->m_right;
         }
-        if (!r)
-            std::cout << "walk got to a null right" << std::endl;
         return std::make_tuple(true, q, r);
     }
 
@@ -323,5 +334,6 @@ private:
         }
     }
 
-    std::shared_ptr<HeadIndex> m_head;
+    std::shared_ptr<HeadIndex> m_head_top;
+    const std::shared_ptr<HeadIndex> m_head_bottom;
 };
