@@ -65,3 +65,24 @@ TEST(LinkedListTransctionMT, putOneWithSingelton) {
     auto r3 = l.get(5);
     EXPECT_EQ(r3, 3);
 }
+
+//this is bug there should be an abort
+TEST(LinkedListTransctionMT, SingeltonPutTxAbort) {
+    std::shared_ptr<TX> tx = std::make_shared<TX>();
+    LinkedList<size_t, size_t> l(tx);
+    ThreadRunner t1;
+    t1.run_thread_set_1([&l, tx] {
+                            tx->TXbegin();
+                            auto r1 = l.get(5);
+                            EXPECT_EQ(r1, std::nullopt);
+                        },
+                        [&l, tx] {
+                            auto r2 = l.get(5);
+                            EXPECT_EQ(r2, 3);
+                             tx->TXend<size_t, size_t>();
+                        });
+    auto r1 = l.put(5, 3);
+    EXPECT_EQ(r1, std::nullopt);
+    //now there will be a commit
+    t1.run_thread_set_2();
+}
