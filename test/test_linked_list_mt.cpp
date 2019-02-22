@@ -77,12 +77,30 @@ TEST(LinkedListTransctionMT, SingeltonPutTxAbort) {
                             EXPECT_EQ(r1, std::nullopt);
                         },
                         [&l, tx] {
-                            auto r2 = l.get(5);
-                            EXPECT_EQ(r2, 3);
-                             tx->TXend<size_t, size_t>();
+                            ASSERT_THROW(l.get(5), TxAbortException);
                         });
     auto r1 = l.put(5, 3);
     EXPECT_EQ(r1, std::nullopt);
+    //now there will be a commit
+    t1.run_thread_set_2();
+}
+
+//this is bug there should be an abort
+TEST(LinkedListTransctionMT, SingeltonPutBeforeTx) {
+    std::shared_ptr<TX> tx = std::make_shared<TX>();
+    LinkedList<size_t, size_t> l(tx);
+    auto r1 = l.put(5, 3);
+    EXPECT_EQ(r1, std::nullopt);
+    ThreadRunner t1;
+    t1.run_thread_set_1([&l, tx] {
+        //since there were a singleton put we must abort once in this implmention
+                            tx->TXbegin();
+                            ASSERT_THROW(l.get(5), TxAbortException);
+                            tx->TXbegin();
+                            EXPECT_EQ(l.get(5), 3);
+                        },
+                        [&l, tx] {
+                        });
     //now there will be a commit
     t1.run_thread_set_2();
 }

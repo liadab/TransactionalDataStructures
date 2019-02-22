@@ -120,6 +120,18 @@ public:
             m_tx->get_local_transaction().TX = false;
             throw TxAbortException();
         }
+        if(next.is_not_null()) {
+            if (next->isLocked() || next->getVersion() > m_tx->get_local_transaction().readVersion) {
+                // abort TX
+                m_tx->get_local_transaction().TX = false;
+                throw TxAbortException();
+            }
+            if (next->isSameVersionAndSingleton(m_tx->get_local_transaction().readVersion)) {
+                m_tx->incrementAndGetVersion();
+                m_tx->get_local_transaction().TX = false;
+                throw TxAbortException();
+            }
+        }
         return next;
     }
 
@@ -243,6 +255,7 @@ public:
                         continue;
                     }
                     pred->m_next = n;
+                    n->setVersionAndSingletonNoLockAssert(m_tx->getVersion(), true);
                     pred->unlock();
                     index.add(n);
                     return std::nullopt;
