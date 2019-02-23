@@ -82,13 +82,15 @@ int main() {
     std::vector<Task> tasks{
             {INSERT, 3, "three"},
             {INSERT, 4, "four"},
+            {INSERT, 45, "rfour"},
             {REMOVE, 4, DUMMY_VAL},
-            {CONTAINS, 2, DUMMY_VAL}
+            {CONTAINS, 2, DUMMY_VAL},
+            {CONTAINS, 4, DUMMY_VAL}
     };
 
     std::shared_ptr<TX> tx = std::make_shared<TX>();
     LinkedList<int, std::string> LL(tx);
-    worker(tasks, 0, 4, LL, tx, 2);
+    worker(tasks, 0, 6, LL, tx, 2);
 
 //    std::vector<std::thread> threads;
 //    for (size_t i = 0; i < num_threads; ++i) {
