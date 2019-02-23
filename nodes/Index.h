@@ -6,6 +6,7 @@
 
 #include <climits>
 #include <mutex>
+#include <vector>
 
 #include "utils.h"
 #include "LNode.h"
@@ -22,8 +23,7 @@ public:
      * @param head_node    assumed to be dummy node
      */
     Index(node_t head_node) :
-        m_head_bottom(std::make_shared<HeadIndex>(head_node, std::shared_ptr<HeadIndex>(), std::shared_ptr<IndexNode>(), 1)),
-        m_rand(2, (1 << 30) - 1)
+        m_head_bottom(std::make_shared<HeadIndex>(head_node, std::shared_ptr<HeadIndex>(), std::shared_ptr<IndexNode>(), 1))
     {
         m_head_top = m_head_bottom;
     }
@@ -60,7 +60,7 @@ public:
         // TODO: make findPred find all the insertion points, and walk from start to end only when cas fails! so it will be more efficient
         if (node_to_add.is_null())
             throw std::invalid_argument("NULL pointer node was given to Index::add");
-        int rnd = m_rand.get();
+        int rnd = get_random_in_range(2, (1 << 30) - 1);
         int level = 1, max;
         while (((rnd >>= 1) & 1) != 0)
             ++level;
@@ -151,7 +151,6 @@ public:
     }
 
 private:
-    Rand m_rand;
     std::mutex m_lock;
 
     class IndexNode {

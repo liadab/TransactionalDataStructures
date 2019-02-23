@@ -1,14 +1,35 @@
 #pragma once
 
-#include <random>
+#include <cstdint>
+#include <thread>
 
-class Rand {
-public:
+#define CAT2(x, y) x##y
+#define CAT(x, y) CAT2(x, y)
+#define PAD volatile char CAT(___padding, __COUNTER__)[128]
 
-    Rand(size_t min_range, size_t max_range);
-    size_t get();
-
+class RandomFNV1A {
 private:
-    size_t m_min_range;
-    size_t m_max_range;
+    union {
+        PAD;
+        uint64_t seed;
+    };
+public:
+    RandomFNV1A() {
+        this->seed = 0;
+    }
+    RandomFNV1A(uint64_t seed) {
+        this->seed = seed;
+    }
+
+    size_t next() {
+        uint64_t offset = 14695981039346656037ULL;
+        uint64_t prime = 1099511628211;
+        uint64_t hash = offset;
+        hash ^= seed;
+        hash *= prime;
+        seed = hash;
+        return hash;
+    }
 };
+
+size_t get_random_in_range(size_t min_range, size_t max_range);
