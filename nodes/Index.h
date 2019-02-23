@@ -332,7 +332,7 @@ private:
         long unsigned int level = 0;
         while (((rnd >>= 1) & 1) != 0)
             ++level;
-        auto old_level = m_head_top->m_level;
+        long unsigned int old_level = m_head_top->m_level;
         level = std::min(level, old_level + 1); // always try to grow by at most one level
         std::shared_ptr<IndexNode> idx = NULL;
         index_node_vec idxs(level + 1);
