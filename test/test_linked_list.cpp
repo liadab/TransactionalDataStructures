@@ -7,7 +7,7 @@ TEST(LinkedListTransction, putOne) {
     LinkedList<size_t, size_t> l(tx);
     auto r1 = l.put(5, 3);
     EXPECT_EQ(l.get(5), 3);
-    EXPECT_EQ(r1, std::nullopt);
+    EXPECT_EQ(r1, NULLOPT);
     auto r2 = l.put(5, 4);
     EXPECT_EQ(l.get(5), 4);
     EXPECT_EQ(r2, 3);
@@ -18,11 +18,11 @@ TEST(LinkedListTransction, removeOne) {
     tx->TXbegin();
     LinkedList<size_t, size_t> l(tx);
     auto r1 = l.remove(5);
-    EXPECT_EQ(r1, std::nullopt);
+    EXPECT_EQ(r1, NULLOPT);
     l.put(5, 3);
     auto r2 = l.remove(5);
     EXPECT_EQ(r2, 3);
-    EXPECT_EQ(l.get(5), std::nullopt);
+    EXPECT_EQ(l.get(5), NULLOPT);
 }
 
 TEST(LinkedListTransction, putMany) {

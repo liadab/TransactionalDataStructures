@@ -4,7 +4,7 @@
 #include <atomic>
 #include <memory>
 #include <cassert>
-#include <optional>
+#include "../optional.h"
 
 template <typename key_t, typename val_t>
 class LNodeWrapper;
@@ -15,7 +15,7 @@ public:
     using node_t = LNodeWrapper<key_t,val_t>;
 
     key_t m_key;
-    std::optional<val_t> m_val;
+    Optional<val_t> m_val;
     node_t m_next;
 
     explicit LNode(key_t key) : m_key(std::move(key)), m_version_mask(0) {}

@@ -164,7 +164,7 @@ public:
                 node->m_val = we.val; // when node val changed because of put
                 if (we.deleted) {
                     node->setDeleted(true);
-                    node->m_val = std::nullopt; // for index
+                    node->m_val = NULLOPT; // for index
                 }
                 node->setVersion(writeVersion);
                 node->setSingleton(false);
@@ -213,13 +213,17 @@ public:
         if (!abort && !local_transaction.readOnly) {
             // adding to index
             auto& indexMap = localStorage.indexAdd;
-            for (auto& [list, nodes] : indexMap) {
+            for (auto& list_and_node : indexMap) {
+                auto& list = list_and_node.first;
+                auto& nodes = list_and_node.second;
                 for (auto &node : nodes) {
                     list->index.add(node);
                 }
             }
             // removing from index
-            for (auto& [list, nodes] : localStorage.indexRemove) {
+            for (auto& list_and_node : localStorage.indexRemove) {
+                auto& list = list_and_node.first;
+                auto& nodes = list_and_node.second;
                 for (auto &node : nodes) {
                     list->index.remove(node);
                 }

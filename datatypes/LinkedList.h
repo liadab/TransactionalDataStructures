@@ -51,7 +51,7 @@ public:
         return pred;
     }
 
-    std::optional<val_t> getVal(node_t n, LocalStorage<key_t, val_t>& localStorage) {
+    Optional<val_t> getVal(node_t n, LocalStorage<key_t, val_t>& localStorage) {
         auto we_it = localStorage.writeSet.find(n);
         if (we_it != localStorage.writeSet.end()) {
             const auto& we = we_it->second;
@@ -208,11 +208,14 @@ public:
         return std::make_tuple(false, pred, next);
     }
 
-    std::optional<val_t> putSingleton(key_t key, val_t val) {
+    Optional<val_t> putSingleton(key_t key, val_t val) {
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
         node_t n(std::move(key), std::move(val));
         while (true) {
-            auto [found, pred, next] = find_node_singelton(localStorage, n);
+            bool found;
+            node_t pred;
+            node_t next;
+            std::tie(found, pred, next) =find_node_singelton(localStorage, n);
             if (found) {
                 // the key exists, change to new value
                 auto node = pred->m_next;
@@ -242,7 +245,7 @@ public:
                     n->setVersionAndSingletonNoLockAssert(m_tx->getVersion(), true);
                     pred->unlock();
                     index.add(n);
-                    return std::nullopt;
+                    return NULLOPT;
                 } else {
                     continue;
                 }
@@ -258,7 +261,7 @@ public:
                     n->setVersionAndSingletonNoLockAssert(m_tx->getVersion(), true);
                     pred->unlock();
                     index.add(n);
-                    return std::nullopt;
+                    return NULLOPT;
                 }
             }
         }
@@ -272,7 +275,7 @@ public:
     // mapping for key. (A null return can also indicate that the map previously
     // associated null with key, if the implementation supports null values.)
     // @throws NullPointerException if the specified key or value is null
-    std::optional<val_t> put(key_t key, val_t val) {
+    Optional<val_t> put(key_t key, val_t val) {
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
 
         // SINGLETON
@@ -284,7 +287,10 @@ public:
 
         m_tx->get_local_transaction().readOnly = false;
         node_t n(std::move(key), std::move(val));
-        auto [found, pred, next] = find_node(localStorage, n);
+        bool found;
+        node_t next;
+        node_t pred;
+        std::tie(found, pred, next) =find_node(localStorage, n);
 
         if (found) {
             auto we_it = localStorage.writeSet.find(next);
@@ -317,14 +323,17 @@ public:
            // printWriteSet();
         }
 
-        return std::nullopt;
+        return NULLOPT;
     }
 
-    std::optional<val_t> putIfAbsentSingleton(key_t key, val_t val) {
+    Optional<val_t> putIfAbsentSingleton(key_t key, val_t val) {
         node_t n(std::move(key), std::move(val));
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
         while (true) {
-            auto[found, pred, next] = find_node_singelton(localStorage, n);
+            bool found;
+            node_t next;
+            node_t pred;
+            std::tie(found, pred, next) = find_node_singelton(localStorage, n);
             if (found) {
                 // the key exists, return value
                 auto node = pred->m_next;
@@ -345,7 +354,7 @@ public:
                     n->setVersionAndSingletonNoLockAssert(m_tx->getVersion(), true);
                     pred->unlock();
                     index.add(n);
-                    return std::nullopt;
+                    return NULLOPT;
                 } else {
                     continue;
                 }
@@ -361,7 +370,7 @@ public:
                     pred->m_next = n;
                     pred->unlock();
                     index.add(n);
-                    return std::nullopt;
+                    return NULLOPT;
                 }
             }
         }
@@ -374,7 +383,7 @@ public:
     // (A null return can also indicate that the map previously associated
     // null with the key, if the implementation supports null values.)
     // @throws NullPointerException if the specified key or value is null
-    std::optional<val_t> putIfAbsent(key_t key, val_t val) {
+    Optional<val_t> putIfAbsent(key_t key, val_t val) {
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
 
         // SINGLETON
@@ -385,7 +394,10 @@ public:
         // TX
         m_tx->get_local_transaction().readOnly = false;
         node_t n(std::move(key), std::move(val));
-        auto [found, pred, next] = find_node(localStorage, n);
+        bool found;
+        node_t pred;
+        node_t next;
+        std::tie(found, pred, next) =find_node(localStorage, n);
 
         if (found) {
             // the key exists, return value
@@ -398,16 +410,19 @@ public:
         localStorage.putIntoWriteSet(pred, n, getVal(pred, localStorage), false);
         localStorage.addToIndexAdd(this, n);
         localStorage.readSet.emplace(pred); // add to read set
-        return std::nullopt;
+        return NULLOPT;
     }
 
-    std::optional<val_t> removeSingleton(key_t key) {
+    Optional<val_t> removeSingleton(key_t key) {
         node_t n(std::move(key));
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
         while (true) {
-            auto[found, pred, next] = find_node_singelton(localStorage, n);
+            bool found;
+            node_t pred;
+            node_t next;
+            std::tie(found, pred, next) = find_node_singelton(localStorage, n);
             if (!found) {
-                return std::nullopt;
+                return NULLOPT;
             }
             //found key trying to remove
             // the key exists
@@ -423,11 +438,11 @@ public:
                     continue;
                 }
                 node_t toRemove;
-                std::optional<val_t> valToRet;
+                Optional<val_t> valToRet;
                 if (next->tryLock()) {
                     toRemove = next;
                     valToRet = toRemove->m_val;
-                    toRemove->m_val = std::nullopt; // for Index
+                    toRemove->m_val = NULLOPT; // for Index
                     pred->m_next = pred->m_next->m_next;
                     auto ver = m_tx->getVersion();
                     toRemove->setVersionAndDeletedAndSingleton(ver, true, true);
@@ -457,7 +472,7 @@ public:
     // Returns the value to which this map previously associated the key,
     // or null if the map contained no mapping for the key.
     // @throws NullPointerException if the specified key is null
-    std::optional<val_t> remove(key_t key) {
+    Optional<val_t> remove(key_t key) {
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
         // SINGLETON
         if (!m_tx->get_local_transaction().TX) {
@@ -468,7 +483,10 @@ public:
 
         m_tx->get_local_transaction().readOnly = false;
         node_t n(std::move(key));
-        auto [found, pred, next] = find_node(localStorage, n);
+        bool found;
+        node_t next;
+        node_t pred;
+        std::tie(found, pred, next) =find_node(localStorage, n);
         // add to read set
         localStorage.readSet.emplace(pred);
 
@@ -487,14 +505,17 @@ public:
             return next->m_val;
         }
         //not found
-        return std::nullopt;
+        return NULLOPT;
     }
 
     bool containsKeySingleton(key_t key) {
         node_t n(std::move(key));
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
         //TODO maybe only get pred is more efficent
-        auto[found, pred, next] = find_node_singelton(localStorage, n);
+        bool found;
+        node_t next;
+        node_t pred;
+        std::tie(found, pred, next) = find_node_singelton(localStorage, n);
         return found;
     }
 
@@ -506,22 +527,28 @@ public:
         }
         // TX
         node_t n(std::move(key));
-        auto [found, pred, next] = find_node(localStorage, n);
+        bool found;
+        node_t next;
+        node_t pred;
+        std::tie(found, pred, next) =find_node(localStorage, n);
         return found;
     }
 
-    std::optional<val_t> getSingleton(key_t key) {
+    Optional<val_t> getSingleton(key_t key) {
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
         node_t n(std::move(key));
         //TODO maybe only get pred is more efficent
-        auto[found, pred, next] = find_node_singelton(localStorage, n);
+        bool found;
+        node_t next;
+        node_t pred;
+        std::tie(found, pred, next) = find_node_singelton(localStorage, n);
         if(found) {
             return next->m_val;
         }
-        return std::nullopt;
+        return NULLOPT;
     }
 
-    std::optional<val_t> get(key_t key) {
+    Optional<val_t> get(key_t key) {
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
         // SINGLETON
         if (!m_tx->get_local_transaction().TX) {
@@ -530,7 +557,10 @@ public:
 
         // TX
         node_t n(std::move(key));
-        auto [found, pred, next] = find_node(localStorage, n);
+        bool found;
+        node_t pred;
+        node_t next;
+        std::tie(found, pred, next) =find_node(localStorage, n);
         if (m_tx->DEBUG_MODE_LL) {
             std::cout << "get key " << key << ":" << std::endl;
             std::cout << "pred is " << pred->m_key << std::endl;
@@ -549,7 +579,7 @@ public:
             assert (next->m_key == key);
             return next->m_val;
         }
-        return std::nullopt;
+        return NULLOPT;
     }
 
     friend std::ostream& operator<< (std::ostream& stream, const LinkedList<key_t, val_t>& list) {

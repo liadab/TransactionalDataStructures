@@ -23,7 +23,7 @@ public:
     std::unordered_map<LinkedList<key_t, val_t>*, std::vector<node_t>> indexAdd;
     std::unordered_map<LinkedList<key_t, val_t>*, std::vector<node_t>> indexRemove;
 
-    void putIntoWriteSet(node_t node, node_t next, std::optional<val_t> val, bool deleted) {
+    void putIntoWriteSet(node_t node, node_t next, Optional<val_t> val, bool deleted) {
         WriteElement<key_t, val_t> we;
         we.next = next;
         we.deleted = deleted;

@@ -15,7 +15,6 @@ int main() {
     std::cout << "Hello, World!" << std::endl;
     node_t n(0, 0);
     Index<size_t, size_t > my_index(n);
-
 //    node_t n2(3, 9);
 //    node_t n3(7, 0);
 //    node_t n4(8, 8);
@@ -46,7 +45,6 @@ int main() {
 
     std::vector<size_t> inputs_keys = {1, 2, 3};
     std::vector<size_t> inputs_vals = {4, 5, 6};
-
 //    std::vector<std::thread> threads;
 //    for (size_t i = 0; i < num_threads; ++i) {
 //        threads.emplace_back([i, &l, &inputs_keys, &inputs_vals]() {
@@ -56,6 +54,7 @@ int main() {
 //    for (auto &t : threads) {
 //        t.join();
 //    }
+
     l.put(5, 3);
 
     std::cout << l << std::endl;
