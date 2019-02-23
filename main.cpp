@@ -1,5 +1,7 @@
 #include <iostream>
 #include <thread>
+#include <string>
+#include <vector>
 
 #include "nodes/LNode.h"
 #include "nodes/LNodeWrapper.h"
@@ -7,44 +9,87 @@
 //#include "nodes/utils.h"
 //#include "nodes/Index.h"
 
+enum OP{
+    INSERT,
+    REMOVE,
+    CONTAINS,
+};
+
+struct Task{
+    OP task_type;
+    int key;
+    std::string val;
+};
+
+void commit_task(const Task& task, LinkedList<int, std::string>& LL)
+{
+    switch (task.task_type)
+    {
+        case INSERT:
+            LL.put(task.key, task.val);
+        case REMOVE:
+            LL.remove(task.key);
+        case CONTAINS:
+            LL.containsKey(task.key);
+    }
+}
+
+void worker(const std::vector<Task>& tasks,
+            const int tasks_index_begin,
+            const int tasks_index_end,
+            LinkedList<int, std::string>& LL,
+            std::shared_ptr<TX> tx,
+            const int ops_per_transc)
+{
+    int counter_ops_in_transc = 0;
+    int succ_ops = 0;
+    int fail_ops = 0;
+
+    for (unsigned int i = tasks_index_begin; i < tasks_index_end; i++) {
+        try {
+            if (counter_ops_in_transc == 0)
+            {
+                tx->TXbegin();
+            }
+
+            commit_task(tasks.at(i), LL);
+            counter_ops_in_transc++;
+
+            if (counter_ops_in_transc == ops_per_transc)
+            {
+                tx->TXend<int, std::string>();
+                succ_ops += counter_ops_in_transc;
+                counter_ops_in_transc = 0;
+            }
+        }
+        catch(TxAbortException& e)
+        {
+                fail_ops += counter_ops_in_transc;
+                counter_ops_in_transc = 0;
+        }
+    }
+    std::cout << "Operations succeeded: " << succ_ops << std::endl;
+    std::cout << "Operations failed: " << fail_ops << std::endl;
+}
 
 int main() {
-    using node_t = LNodeWrapper<size_t,size_t>;
-    size_t num_threads = 2;
 
-    std::cout << "Hello, World!" << std::endl;
-    node_t n(0, 0);
-    Index<size_t, size_t > my_index(n);
-//    node_t n2(3, 9);
-//    node_t n3(7, 0);
-//    node_t n4(8, 8);
-//    my_index.add(n2);
-//    my_index.add(n3);
-//    my_index.add(n4);
-    node_t n5(5, 18);
-    my_index.add(n5);
-    for (size_t i = 0; i< 16; i++) {
-        if (i==5) continue;
-        node_t n(i,  i+1);
-        my_index.add(n);
-    }
+    //insert 100,000 puts at start
+    //in the end check that size(LL) = #succ insert - #succ remove
 
-    std::cout << "before remove" << std::endl;
-    std::cout << my_index << std::endl;
-    try {
-        n5->m_val = NULLOPT;
-        my_index.remove(n5);
-    } catch (std::exception& e) {
-        std::cout << "remove threw an exception: " << e.what() << std::endl;
-    }
-    std::cout << "after remove" << std::endl;
-    std::cout << my_index << std::endl;
+    std::string DUMMY_VAL = "dummy";
+
+    std::vector<Task> tasks{
+            {INSERT, 3, "three"},
+            {INSERT, 4, "four"},
+            {REMOVE, 4, DUMMY_VAL},
+            {CONTAINS, 2, DUMMY_VAL}
+    };
 
     std::shared_ptr<TX> tx = std::make_shared<TX>();
-    LinkedList<size_t, size_t> l(tx);
+    LinkedList<int, std::string> LL(tx);
+    worker(tasks, 0, 4, LL, tx, 2);
 
-    std::vector<size_t> inputs_keys = {1, 2, 3};
-    std::vector<size_t> inputs_vals = {4, 5, 6};
 //    std::vector<std::thread> threads;
 //    for (size_t i = 0; i < num_threads; ++i) {
 //        threads.emplace_back([i, &l, &inputs_keys, &inputs_vals]() {
@@ -55,8 +100,5 @@ int main() {
 //        t.join();
 //    }
 
-    l.put(5, 3);
-
-    std::cout << l << std::endl;
     return 0;
 }
