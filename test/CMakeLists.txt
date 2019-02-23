@@ -30,5 +30,5 @@ add_subdirectory(${googletest_SOURCE_DIR} ${googletest_BINARY_DIR})
 
 # Trivial example using gtest and gmock
 add_executable(test test_linked_list_mt.cpp test_linked_list.cpp test_linked_list_singelton.cpp ../nodes/utils.cpp)
-target_link_libraries(example gtest gtest_main)
-add_test(NAME example_test COMMAND example)
+target_link_libraries(test gtest gtest_main)
+add_test(NAME example_test COMMAND test)
