@@ -137,6 +137,19 @@ public:
         }
     }
 
+    node_t getPred(node_t node) {
+        if (node.is_null()) {
+            throw std::invalid_argument("NULL pointer node was given to Index::getPred");
+        }
+        for (; ; ) {
+            node_t b = findPredecessor(node);
+            if (b->m_val) // not deleted
+            {
+                return b;
+            }
+        }
+    }
+
 private:
     Rand m_rand;
     std::mutex m_lock;
@@ -241,22 +254,22 @@ private:
      *
      * @return a predecessor of key
      */
-    node_t findPredecessor(node_t node) {
+    node_t findPredecessor(node_t node_to_find) {
         while (true) {
             bool finish;
-            std::shared_ptr<IndexNode> curr = m_head_top, prev, dumm;
+            std::shared_ptr<IndexNode> prev;
+            std::shared_ptr<IndexNode> dumm;
+            std::shared_ptr<IndexNode> curr = m_head_top;
             auto r = curr->m_right;
             auto d = curr->m_down;
             auto level = m_head_top->m_level;
             while (level) {
 
                 if (!curr->m_node->m_val) { // maybe curr was unlinked. start the whole operation over!
-                    std::cout << "bad curr val in findPredeccesor?! curr: " << curr->m_node << std::endl; // TODO: add only on debug
-                    throw std::runtime_error("");
                     break;
                 }
                 for (;;) {
-                    std::tie(finish, prev, dumm) = walkLevel(curr, node);
+                    std::tie(finish, prev, dumm) = walkLevel(curr, node_to_find);
                     if (finish) break;
                 }
                 auto node = prev->m_node;
@@ -335,15 +348,6 @@ private:
         return std::make_tuple(true, q, r);
     }
 
-    node_t getPred(node_t node) {
-        if (node == NULL)
-            throw std::invalid_argument("NULL pointer node was given to Index::getPred");
-        for (; ; ) {
-            node_t b = findPredecessor(node);
-            if (b.m_val != NULL) // not deleted
-                return b;
-        }
-    }
 
     std::shared_ptr<HeadIndex> m_head_top;
     const std::shared_ptr<HeadIndex> m_head_bottom;

@@ -27,7 +27,7 @@ template <typename key_t, typename val_t>
 class LinkedList {
 public:
     using node_t = LNodeWrapper<key_t,val_t>;
-    using index_t = DummyIndex<key_t, val_t>;
+    using index_t = Index<key_t, val_t>;
 
     std::shared_ptr<TX> m_tx;
     node_t head;
@@ -35,7 +35,7 @@ public:
 
     explicit LinkedList(std::shared_ptr<TX> tx) :
         m_tx(std::move(tx)),
-        head(std::numeric_limits<key_t>::min()),
+        head(std::numeric_limits<key_t>::min(), std::numeric_limits<key_t>::min()),
         index(head)
     { }
 
