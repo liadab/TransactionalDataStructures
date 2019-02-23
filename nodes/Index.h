@@ -306,16 +306,21 @@ private:
     void tryReduceLevel() {
         // TODO: validate it, add debug prints
         auto h = m_head_top;
+        if (h->m_level < 3) {
+            return;
+        }
         auto d = h->m_down;
         auto e = d->m_down;
-        if (h->m_level > 3 &&
-            d && e &&
-            !e->m_right &&
-            !d->m_right &&
-            !h->m_right &&
-            casHead(h, d, false) && // try to set
-            h->m_right) // recheck
+        if (
+                d && e &&
+                !e->m_right &&
+                !d->m_right &&
+                !h->m_right &&
+                casHead(h, d, false) && // try to set
+                h->m_right
+            ) { // recheck
             casHead(d, h, true);   // try to backout
+        }
     }
 
     /**
