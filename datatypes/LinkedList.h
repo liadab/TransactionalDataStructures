@@ -35,7 +35,7 @@ public:
 
     explicit LinkedList(std::shared_ptr<TX> tx) :
         m_tx(std::move(tx)),
-        head(std::numeric_limits<key_t>::min(), std::numeric_limits<key_t>::min()),
+        head(std::numeric_limits<key_t>::min(), val_t{}),
         index(head)
     { }
 
