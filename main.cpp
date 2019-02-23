@@ -51,12 +51,12 @@ void commit_task(const Task& task, LinkedList<int, std::string>& LL, int& succ_i
     }
 }
 
-void worker(const std::vector<Task>& tasks,
-            const int tasks_index_begin,
-            const int tasks_index_end,
-            LinkedList<int, std::string>& LL,
-            std::shared_ptr<TX> tx,
-            const int ops_per_transc)
+void work(const std::vector<Task>& tasks,
+           const int tasks_index_begin,
+           const int tasks_index_end,
+           LinkedList<int, std::string>& LL,
+           std::shared_ptr<TX> tx,
+           const int ops_per_transc)
 {
     int succ_inserts = 0;
     int succ_removes = 0;
@@ -94,6 +94,7 @@ void worker(const std::vector<Task>& tasks,
     std::cout << "Removes succeeded: " << succ_removes << std::endl;
     std::cout << "Operations succeeded: " << succ_ops << std::endl;
     std::cout << "Operations failed: " << fail_ops << std::endl;
+
 }
 
 Task get_random_task(OP task_op)
@@ -154,17 +155,19 @@ void print_tasks_vector(const std::vector<Task> tasks)
     }
 }
 
-int init_linked_list(LinkedList<int, std::string>& LL)
+int init_linked_list(LinkedList<int, std::string>& LL, std::shared_ptr<TX> tx)
 {
+    tx->TXbegin(); //we use tx here to avoid singleton operation
     int init_LL_size = 0;
     for (int i = 0; i < N_INIT_LIST; i++)
     {
         Task task = get_random_task(INSERT);
         if (LL.put(task.key, task.val) == NULLOPT)
         {
-           init_LL_size++;
+            init_LL_size++;
         }
     }
+    tx->TXend<int, std::string>();
     return init_LL_size;
 }
 
@@ -186,6 +189,7 @@ int main(int argc, char *argv[]) {
 //            {CONTAINS, 4, DUMMY_VAL}
 //    };
 
+    uint32_t n_threads = 2;
     uint32_t n_tasks = 10;
     uint32_t n_tasks_per_transaction = 2;
     uint32_t x_of_100_inserts = 50;
@@ -197,20 +201,22 @@ int main(int argc, char *argv[]) {
     std::shared_ptr<TX> tx = std::make_shared<TX>();
 
     LinkedList<int, std::string> linked_list(tx);
-    int init_LL_size = init_linked_list(linked_list);
+    int init_LL_size = init_linked_list(linked_list, tx);
     std::cout << "linked list size:" << init_LL_size << std::endl;
 
-    worker(tasks, 0, n_tasks, linked_list, tx, n_tasks_per_transaction);
+    std::vector<std::thread> threads;
+    for (size_t i = 0; i < n_threads; ++i) {
+        int index_begin = i * n_tasks / n_threads;
+        int index_end = (i + 1) * n_tasks / n_threads;
 
-//    std::vector<std::thread> threads;
-//    for (size_t i = 0; i < num_threads; ++i) {
-//        threads.emplace_back([i, &l, &inputs_keys, &inputs_vals]() {
-//           l.put(inputs_keys[i], inputs_vals[i]);
-//        });
-//    }
-//    for (auto &t : threads) {
-//        t.join();
-//    }
+        threads.emplace_back([&tasks, index_begin, index_end, &linked_list, tx, n_tasks, n_tasks_per_transaction]() {
+            work(tasks, index_begin, index_end, linked_list, tx, n_tasks_per_transaction);
+        });
+    }
+    for (auto &t : threads) {
+        t.join();
+    }
 
+    std::cout << "DONE" << std::endl;
     return 0;
 }
