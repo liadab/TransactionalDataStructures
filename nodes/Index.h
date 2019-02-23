@@ -1,10 +1,5 @@
 /* TODO list
- * make constructor init head's val as min
- * change head mechanism - always had one pointer that points to the downmost head (will never be deleted),
- *      and make the heads list a two-sided list
- * insert from buttom up, so that linearization won't fail
- *      (when I have up most nodes point to something which isn't even in the list, such as in an insertion which fails)
- * in remove no one checks what happens to the upper node that points to me (yet it is supposed to be removed as well..)
+ * make constructor init head's val as min - and understand why 0 == NULL but (!0) returns false?
  * */
 
 # pragma once
@@ -62,6 +57,7 @@ public:
      * @param node_to_add    the node to be added
      */
     void add(node_t node_to_add) {
+        // TODO: make findPred find all the insertion points, and walk from start to end only when cas fails! so it will be more efficient
         if (node_to_add.is_null())
             throw std::invalid_argument("NULL pointer node was given to Index::add");
         int rnd = m_rand.get();
@@ -76,7 +72,6 @@ public:
         // create the new nodes
         for (int i = 1; i <= level; ++i) {
             idxs[i] = idx = std::make_shared<IndexNode>(node_to_add, idx, std::shared_ptr<IndexNode>());
-//            std::cout << "new index created:" << idx->m_node << std::endl; TODO delete/ add debug flag
         }
 
         // find insertion points in the existing levels - from bottom up
@@ -130,7 +125,7 @@ public:
     void remove(node_t node) {
         if (node.is_null())
             throw std::invalid_argument("NULL pointer node was given to Index::remove");
-        if (node->m_val != NULL)
+        if (node->m_val)
             // TODO delete this
             throw std::invalid_argument("Index::remove got a non-NULL node to remove");
         std::cout << "removing key:" << node->m_key << std::endl;
@@ -156,7 +151,6 @@ private:
             std::lock_guard<std::mutex> l(m_lock);
             if (m_right == cmp) {
                 m_right = val;
-//                std::cout << "new right value: " << m_right->m_node << std::endl; TODO add debug
                 return true;
             } return false;
         }
@@ -197,7 +191,7 @@ private:
     public:
         const uint64_t m_level;
         const std::shared_ptr<HeadIndex> m_down;
-        std::shared_ptr<HeadIndex> m_up; // TODO: volatile?
+        std::shared_ptr<HeadIndex> m_up;
         HeadIndex(node_t node, std::shared_ptr<HeadIndex> down, std::shared_ptr<IndexNode> right, uint64_t level):
                 IndexNode(node, down, right),
                 m_down(down),
@@ -218,16 +212,19 @@ private:
     }
 
     /**
-     * compareAndSet head node, put val the upmost head
+     * level up m_top_head to val, make old head points to the new one as well
+     * m_lock is assumed to be taken,
      */
     bool _levelUp(std::shared_ptr<HeadIndex> cmp, std::shared_ptr<HeadIndex> val) {
-        // TODO: change assert
-        assert(val->m_down == cmp);
-        assert(!val->m_up);
+        assert(val->m_down == cmp && !val->m_up);
         cmp->m_up = val;
         m_head_top = val;
     }
 
+    /**
+     * level down m_top_head to val
+     * m_lock is assumed to be taken,
+     */
     bool _levelDown(std::shared_ptr<HeadIndex> cmp, std::shared_ptr<HeadIndex> val) {
         val->m_up = std::shared_ptr<HeadIndex>();
         m_head_top = val;
@@ -242,24 +239,32 @@ private:
      * @return a predecessor of key
      */
     node_t findPredecessor(node_t node) {
-        bool finish;
-        std::shared_ptr<IndexNode> curr = m_head_top;
-        auto r = curr->m_right;
-        auto d = curr->m_down;
-        auto level = m_head_top->m_level;
-        for (int i = 0; i < level + 1; ++i) {
-            for (;;) {
-                std::tie(finish, curr, r) = walkLevel(curr, node);
-                if (finish) break;
+        while (true) {
+            bool finish;
+            std::shared_ptr<IndexNode> curr = m_head_top, prev, dumm;
+            auto r = curr->m_right;
+            auto d = curr->m_down;
+            auto level = m_head_top->m_level;
+            while (level) {
+
+                if (!curr->m_node->m_val) { // maybe curr was unlinked. start the whole operation over!
+                    std::cout << "bad curr val in findPredeccesor?! curr: " << curr->m_node << std::endl; // TODO: add only on debug
+                    throw std::runtime_error("");
+                    break;
+                }
+                for (;;) {
+                    std::tie(finish, prev, dumm) = walkLevel(curr, node);
+                    if (finish) break;
+                }
+                auto node = prev->m_node;
+                if (!node->m_val) // node prev is about to be removed, restart level
+                    continue;
+                if (!(d = prev->m_down)) // no more levels left - we found the closest one
+                    return node;
+                curr = d;
+                level--;
             }
-            // TODO: what if d was exactly unlinked from the list? can it happen?
-            if (!(d = curr->m_down)) // no more levels left - we found the closest one
-                return curr->m_node;
-            curr = d;
-            r = curr->m_right;
-            std::cout << "down to:" << curr->m_node << std::endl;
         }
-        throw std::runtime_error("Index::findPredecessor got down too many levels??");
     }
 
     /**
@@ -283,7 +288,8 @@ private:
      * reduction.
      */
     void tryReduceLevel() {
-        auto h = m_head_top; // TODO shared ptr way?
+        // TODO: validate it, add debug prints
+        auto h = m_head_top;
         auto d = h->m_down;
         auto e = d->m_down;
         if (h->m_level > 3 &&
@@ -314,8 +320,10 @@ private:
             // compare before deletion check avoids needing recheck
             bool c = (node_to_add->m_key > n->m_key);
             if (!n->m_val) { // need to unlink deleted node
-                if (!q->unlink(r)) // need to restart walk..
+                if (!q->unlink(r)) { // need to restart walk..
+                    std::cout << "unlink failed" << r << std::endl;
                     return std::make_tuple(false, std::shared_ptr<IndexNode>(), std::shared_ptr<IndexNode>());
+                }
             } else if (c) {
                 q = r;
             } else break;
