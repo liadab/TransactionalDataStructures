@@ -128,15 +128,18 @@ public:
      * @param node    the node to be removed
      */
     void remove(node_t node) {
-        if (node.is_null())
+        if (node.is_null()) {
             throw std::invalid_argument("NULL pointer node was given to Index::remove");
-        if (node->m_val != NULL)
+        }
+        if (node->m_val) {
             // TODO delete this
             throw std::invalid_argument("Index::remove got a non-NULL node to remove");
+        }
         std::cout << "removing key:" << node->m_key << std::endl;
         findPredecessor(node); // clean index
-        if (!m_head_top->m_right)
+        if (!m_head_top->m_right) {
             tryReduceLevel();
+        }
     }
 
 private:

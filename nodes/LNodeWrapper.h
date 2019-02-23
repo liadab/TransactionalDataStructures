@@ -57,7 +57,7 @@ public:
         } else {
             stream << "[" << node->m_key << ": ";
             if (node->m_val) {
-                stream << *node->m_val;
+                stream << node->m_val;
             } else {
                 stream << "None";
             }

@@ -32,7 +32,7 @@ int main() {
     std::cout << "before remove" << std::endl;
     std::cout << my_index << std::endl;
     try {
-        n5->m_val = NULL;
+        n5->m_val = NULLOPT;
         my_index.remove(n5);
     } catch (std::exception& e) {
         std::cout << "remove threw an exception: " << e.what() << std::endl;
