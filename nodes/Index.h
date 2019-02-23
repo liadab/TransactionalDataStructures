@@ -23,135 +23,12 @@ public:
      * @param head_node    assumed to be dummy node
      */
     Index(node_t head_node) :
-        m_head_bottom(std::make_shared<HeadIndex>(head_node, std::shared_ptr<HeadIndex>(), std::shared_ptr<IndexNode>(), 1))
+        m_head_bottom(std::make_shared<HeadIndex>(head_node, std::shared_ptr<HeadIndex>(), std::shared_ptr<IndexNode>(), 0))
     {
         m_head_top = m_head_bottom;
     }
 
-    friend std::ostream& operator<< (std::ostream& stream, const Index<key_t, val_t>& index) {
-        auto cur = index.m_head_top;
-        while(cur) {
-            auto level = cur->m_level;
-            stream << "level: " << level;
-            std::shared_ptr<IndexNode> r = cur;
-            while (r) {
-                stream << "\t" << r->m_node;
-                if (r->m_down)
-                    stream << "v";
-                else
-                    stream << "x";
-                stream << ",";
-                r = r->m_right;
-            }
-            stream << "\tNone\n";
-            cur = cur->m_down;
-        }
-        cur = index.m_head_bottom;
-        stream << "bottom level: " << cur->m_level << " node: " << cur->m_node;
-        return stream;
-    }
-
-    /**
-     * adds node to the index
-     *
-     * @param node_to_add    the node to be added
-     */
-    void add(node_t node_to_add) {
-        // TODO: make findPred find all the insertion points, and walk from start to end only when cas fails! so it will be more efficient
-        if (node_to_add.is_null())
-            throw std::invalid_argument("NULL pointer node was given to Index::add");
-        int rnd = get_random_in_range(2, (1 << 30) - 1);
-        int level = 1, max;
-        while (((rnd >>= 1) & 1) != 0)
-            ++level;
-        int old_level = m_head_top->m_level;
-        level = std::min(level, old_level + 1); // always try to grow by at most one level
-        std::shared_ptr<IndexNode> idx = NULL;
-        std::vector<std::shared_ptr<IndexNode>> idxs(level+1);
-
-        // create the new nodes
-        for (int i = 1; i <= level; ++i) {
-            idxs[i] = idx = std::make_shared<IndexNode>(node_to_add, idx, std::shared_ptr<IndexNode>());
-        }
-
-        // find insertion points in the existing levels - from bottom up
-        bool finish;
-        auto head = m_head_bottom;
-        std::shared_ptr<IndexNode> curr = head;
-        auto r = curr->m_right;
-        auto t = idxs[0];
-        int insertion_level = 0;
-        while (head && head->m_level <= level) {
-            for (; ; ) { // continously try to insert in level
-                std::tie(finish, curr, r) = walkLevel(head, node_to_add);
-                if (finish)
-                    break;
-            }
-            t = idxs[head->m_level];
-            if (!curr->link(r, t))
-                continue; // link failed, restart
-            if (!t->m_node->m_val)
-                return; // node is exactly being deleted, abort
-            head = head->m_up;
-            insertion_level++;
-        }
-
-        if (insertion_level == level) // no need to continue
-            return;
-
-        old_level = m_head_top->m_level; // maybe in the meanwhile things have changed..
-        if (old_level < level) {
-            // try to grow - as before only by one level at a time!
-            head = m_head_top;
-            old_level = head->m_level;
-            if (level <= old_level) // lost race to add level
-                return;
-            node_t old_base = head->m_node;
-            auto newh = std::make_shared<HeadIndex>(old_base, head, idxs[old_level + 1], old_level + 1);
-            if (casHead(head, newh, true)) {
-                head = newh;
-                idx = idxs[level = old_level]; // level is changed because idxs in all levels b/w old_level to level was already insert
-                return;
-            }
-        } // else - maybe we lost some insertion level, not so bad..
-    }
-
-    /**
-     * removes node from the index.
-     * node's val assumed to be null
-     *
-     * @param node    the node to be removed
-     */
-    void remove(node_t node) {
-        if (node.is_null()) {
-            throw std::invalid_argument("NULL pointer node was given to Index::remove");
-        }
-        if (node->m_val) {
-            // TODO delete this
-            throw std::invalid_argument("Index::remove got a non-NULL node to remove");
-        }
-        findPredecessor(node); // clean index
-        if (!m_head_top->m_right) {
-            tryReduceLevel();
-        }
-    }
-
-    node_t getPred(node_t node) {
-        if (node.is_null()) {
-            throw std::invalid_argument("NULL pointer node was given to Index::getPred");
-        }
-        for (; ; ) {
-            node_t b = findPredecessor(node);
-            if (b->m_val) // not deleted
-            {
-                return b;
-            }
-        }
-    }
-
 private:
-    std::mutex m_lock;
-
     class IndexNode {
     public:
         std::shared_ptr<IndexNode> m_right;
@@ -159,7 +36,7 @@ private:
         const node_t m_node;
 
         IndexNode(node_t node, std::shared_ptr<IndexNode> down, std::shared_ptr<IndexNode> right)
-        : m_node(node), m_down(down), m_right(right) { }
+                : m_node(node), m_down(down), m_right(right) { }
 
         bool casRight(std::shared_ptr<IndexNode> cmp, std::shared_ptr<IndexNode> val) {
             std::lock_guard<std::mutex> l(m_lock);
@@ -213,14 +90,136 @@ private:
                 m_level(level) { }
     };
 
+public:
+    using index_node_vec = std::vector<std::shared_ptr<IndexNode>>;
+
+    friend std::ostream& operator<< (std::ostream& stream, const Index<key_t, val_t>& index) {
+        auto cur = index.m_head_top;
+        while(cur) {
+            auto level = cur->m_level;
+            stream << "level: " << level;
+            std::shared_ptr<IndexNode> r = cur;
+            while (r) {
+                stream << "\t" << r->m_node;
+                if (r->m_down)
+                    stream << "v";
+                else
+                    stream << "x";
+                stream << ",";
+                r = r->m_right;
+            }
+            stream << "\tNone\n";
+            cur = cur->m_down;
+        }
+        cur = index.m_head_bottom;
+        stream << "bottom level: " << cur->m_level << " node: " << cur->m_node;
+        return stream;
+    }
+
+    bool insert_in_level(std::shared_ptr<IndexNode> new_node, std::shared_ptr<IndexNode> prev,
+            std::shared_ptr<IndexNode> next, std::shared_ptr<HeadIndex> head) {
+        while (true) {
+            bool finish;
+            if (prev->link(next, new_node)) {
+                return true;
+            }
+            if (!new_node->m_node->m_val)
+                return false; // node is exactly being deleted, abort
+            for (; ; ) { // continously try to insert in level
+                std::tie(finish, prev, next) = walkLevel(head, new_node->m_node);
+                if (finish)
+                    break;
+            }
+        }
+    }
+
+    /**
+     * adds node to the index
+     *
+     * @param node_to_add    the node to be added
+     */
+    void add(node_t node_to_add) {
+        if (node_to_add.is_null())
+            throw std::invalid_argument("NULL pointer node was given to Index::add");
+
+        long unsigned int level;
+        index_node_vec idxs;
+        std::tie(level, idxs) = createNewIndexNode(node_to_add);
+
+        // find insertion points in the existing levels - from bottom up
+        auto head = m_head_bottom;
+        int insertion_level = 0;
+        index_node_vec prevs;
+        index_node_vec nexts;
+        std::tie(prevs, nexts) = findInsertionPoints(node_to_add);
+        while (head && head->m_level <= level) {
+            auto curr_level = head->m_level;
+            if (!insert_in_level(idxs[curr_level], prevs[curr_level], nexts[curr_level], head)) {
+                return;
+            }
+            head = head->m_up;
+            insertion_level++;
+        }
+
+        if (insertion_level == (level + 1)) { // no need to continue
+            return;
+        }
+
+        int old_level = m_head_top->m_level; // maybe in the meanwhile things have changed..
+        if (old_level < level) {
+            // try to grow - as before only by one level at a time!
+            head = m_head_top;
+            old_level = head->m_level;
+            if (level <= old_level) // lost race to add level
+                return;
+            node_t old_base = head->m_node;
+            auto newh = std::make_shared<HeadIndex>(old_base, head, idxs[old_level + 1], old_level + 1);
+            if (casHead(head, newh, true)) {
+                head = newh;
+                return;
+            }
+        } // else - maybe we lost some insertion level, not so bad..
+    }
+
+    /**
+     * removes node from the index.
+     * node's val assumed to be null
+     *
+     * @param node    the node to be removed
+     */
+    void remove(node_t node) {
+        if (node.is_null()) {
+            throw std::invalid_argument("NULL pointer node was given to Index::remove");
+        }
+        findPredecessor(node); // clean index
+        if (!m_head_top->m_right) {
+            tryReduceLevel();
+        }
+    }
+
+    node_t getPred(node_t node) {
+        if (node.is_null()) {
+            throw std::invalid_argument("NULL pointer node was given to Index::getPred");
+        }
+        for (; ; ) {
+            node_t b = findPredecessor(node);
+            if (b->m_val) { // not deleted
+                return b;
+            }
+        }
+    }
+
+private:
+    std::mutex m_lock;
+
     /**
      * compareAndSet head node
      */
     bool casHead(std::shared_ptr<HeadIndex> cmp, std::shared_ptr<HeadIndex> val, bool up) {
         std::lock_guard<std::mutex> l(m_lock);
         if (m_head_top == cmp) {
-            if (up) _levelUp(cmp, val);
-            else _levelDown(cmp, val);
+            if (up) levelUp(cmp, val);
+            else levelDown(cmp, val);
             return true;
         } return false;
     }
@@ -229,7 +228,7 @@ private:
      * level up m_top_head to val, make old head points to the new one as well
      * m_lock is assumed to be taken,
      */
-    bool _levelUp(std::shared_ptr<HeadIndex> cmp, std::shared_ptr<HeadIndex> val) {
+    bool levelUp(std::shared_ptr<HeadIndex> cmp, std::shared_ptr<HeadIndex> val) {
         assert(val->m_down == cmp && !val->m_up);
         cmp->m_up = val;
         m_head_top = val;
@@ -239,7 +238,7 @@ private:
      * level down m_top_head to val
      * m_lock is assumed to be taken,
      */
-    bool _levelDown(std::shared_ptr<HeadIndex> cmp, std::shared_ptr<HeadIndex> val) {
+    bool levelDown(std::shared_ptr<HeadIndex> cmp, std::shared_ptr<HeadIndex> val) {
         val->m_up = std::shared_ptr<HeadIndex>();
         m_head_top = val;
     }
@@ -253,32 +252,10 @@ private:
      * @return a predecessor of key
      */
     node_t findPredecessor(node_t node_to_find) {
-        while (true) {
-            bool finish;
-            std::shared_ptr<IndexNode> prev;
-            std::shared_ptr<IndexNode> dumm;
-            std::shared_ptr<IndexNode> curr = m_head_top;
-            auto r = curr->m_right;
-            auto d = curr->m_down;
-            auto level = m_head_top->m_level;
-            while (level) {
-
-                if (!curr->m_node->m_val) { // maybe curr was unlinked. start the whole operation over!
-                    break;
-                }
-                for (;;) {
-                    std::tie(finish, prev, dumm) = walkLevel(curr, node_to_find);
-                    if (finish) break;
-                }
-                auto node = prev->m_node;
-                if (!node->m_val) // node prev is about to be removed, restart level
-                    continue;
-                if (!(d = prev->m_down)) // no more levels left - we found the closest one
-                    return node;
-                curr = d;
-                level--;
-            }
-        }
+        index_node_vec prevs;
+        index_node_vec nexts;
+        std::tie(prevs, nexts) = findInsertionPoints(node_to_find);
+        return prevs[0]->m_node;
     }
 
     /**
@@ -350,6 +327,55 @@ private:
         return std::make_tuple(true, q, r);
     }
 
+    std::tuple<long unsigned int, index_node_vec> createNewIndexNode(node_t node_to_add) {
+        int rnd = get_random_in_range(2, (1 << 30) - 1);
+        long unsigned int level = 0;
+        while (((rnd >>= 1) & 1) != 0)
+            ++level;
+        auto old_level = m_head_top->m_level;
+        level = std::min(level, old_level + 1); // always try to grow by at most one level
+        std::shared_ptr<IndexNode> idx = NULL;
+        index_node_vec idxs(level + 1);
+
+        // create the new nodes
+        for (int i = 0; i < level + 1; ++i) {
+            idxs[i] = idx = std::make_shared<IndexNode>(node_to_add, idx, std::shared_ptr<IndexNode>());
+        }
+        return std::make_tuple(level, idxs);
+    }
+
+    std::tuple<index_node_vec, index_node_vec> findInsertionPoints(node_t node_to_find){
+        while (true) {
+            bool finish;
+            std::shared_ptr<IndexNode> prev;
+            std::shared_ptr<IndexNode> next;
+            std::shared_ptr<IndexNode> curr = m_head_top;
+            auto d = curr->m_down;
+            int level = m_head_top->m_level;
+            index_node_vec prevs(level + 1);
+            index_node_vec nexts(level + 1);
+            while (level > -1) {
+                if (!curr->m_node->m_val) { // maybe curr was unlinked. start the whole operation over!
+                    break;
+                }
+                for (;;) {
+                    std::tie(finish, prev, next) = walkLevel(curr, node_to_find);
+                    if (finish) break;
+                }
+                if (!prev->m_node->m_val) // node prev is about to be removed, restart level
+                    continue;
+                prevs[level] = prev;
+                nexts[level] = next;
+                if (!(d = prev->m_down)) { // no more levels left - we found the closest one
+                    assert(!level && "finished findInsertionPoints without getting to the bottom level?");
+                    return std::make_tuple(prevs, nexts);
+                }
+                curr = d;
+                level--;
+            }
+            assert("findInsertionPoints: reached allegedly unreachable location");
+        }
+    }
 
     std::shared_ptr<HeadIndex> m_head_top;
     const std::shared_ptr<HeadIndex> m_head_bottom;
