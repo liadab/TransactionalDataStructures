@@ -1,7 +1,3 @@
-/* TODO list
- * make constructor init head's val as min - and understand why 0 == NULL but (!0) returns false?
- * */
-
 # pragma once
 
 #include <climits>
