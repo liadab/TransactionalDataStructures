@@ -11,7 +11,7 @@
 //#include "nodes/utils.h"
 //#include "nodes/Index.h"
 
-enum OP
+enum TaskType
 {
     INSERT,
     REMOVE,
@@ -20,35 +20,34 @@ enum OP
 
 struct Task
 {
-    OP task_type;
+    TaskType task_type;
     int key;
     std::string val;
 };
 
-static const std::string DUMMY_VAL = "dummy";
 static const char alphanum[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 static const int N_INIT_LIST = 100;
 
 void commit_task_and_update_counters(const Task &task,
                                      LinkedList<int, std::string> &LL,
-                                     int &succ_inserts,
-                                     int &succ_removes)
+                                     int &cntr_inserts_occurred_in_transc,
+                                     int &cntr_removes_occurred_in_transc)
 {
     switch (task.task_type)
     {
-        case OP::INSERT:
+        case TaskType::INSERT:
             if (LL.put(task.key, task.val) == NULLOPT)
             {
-                succ_inserts++;
+                cntr_inserts_occurred_in_transc++;
             }
             break;
-        case OP::REMOVE:
+        case TaskType::REMOVE:
             if (!(LL.remove(task.key) == NULLOPT))
             {
-                succ_removes++;
+                cntr_removes_occurred_in_transc++;
             }
             break;
-        case OP::CONTAINS:
+        case TaskType::CONTAINS:
             LL.containsKey(task.key);
             break;
     }
@@ -61,46 +60,56 @@ void work(const std::vector<Task>& tasks,
            std::shared_ptr<TX> tx,
            const int ops_per_transc)
 {
-    int succ_inserts = 0;
-    int succ_removes = 0;
-
     int succ_ops = 0;
     int fail_ops = 0;
+    int inserts_occurred = 0;
+    int removes_occurred = 0;
 
-    int counter_ops_in_transc = 0;
+    int cntr_ops_in_transc = 0;
+    int cntr_inserts_occurred_in_tx = 0;
+    int cntr_removes_occurred_in_tx = 0;
 
     for (unsigned int i = tasks_index_begin; i < tasks_index_end; i++) {
         try {
-            if (counter_ops_in_transc == 0)
+            if (cntr_ops_in_transc == 0)
             {
                 tx->TXbegin();
             }
-            counter_ops_in_transc++;
-            commit_task_and_update_counters(tasks.at(i), LL, succ_inserts, succ_removes);
+            cntr_ops_in_transc++;
+            commit_task_and_update_counters(tasks.at(i), LL, cntr_inserts_occurred_in_tx, cntr_removes_occurred_in_tx);
 
-            if (counter_ops_in_transc == ops_per_transc || i == tasks_index_end - 1)
+            if (cntr_ops_in_transc == ops_per_transc || i == tasks_index_end - 1)
             {
                 tx->TXend<int, std::string>();
-                succ_ops += counter_ops_in_transc;
-                counter_ops_in_transc = 0;
+
+                inserts_occurred += cntr_inserts_occurred_in_tx;
+                removes_occurred += cntr_removes_occurred_in_tx;
+                succ_ops += cntr_ops_in_transc;
+
+                cntr_ops_in_transc = 0;
+                cntr_inserts_occurred_in_tx = 0;
+                cntr_removes_occurred_in_tx = 0;
             }
         }
         catch(TxAbortException& e)
         {
-            fail_ops += counter_ops_in_transc;
-            counter_ops_in_transc = 0;
+            fail_ops += cntr_ops_in_transc;
+
+            cntr_ops_in_transc = 0;
+            cntr_inserts_occurred_in_tx = 0;
+            cntr_removes_occurred_in_tx = 0;
         }
     }
     std::cout << "\nLIST AT END:\n" << LL << std::endl;
-    std::cout << "Inserts succeeded: " << succ_inserts << std::endl;
-    std::cout << "Removes succeeded: " << succ_removes << std::endl;
+    std::cout << "Inserts occurred: " << inserts_occurred << std::endl;
+    std::cout << "Removes occurred: " << removes_occurred << std::endl;
     std::cout << "Operations succeeded: " << succ_ops << std::endl;
     std::cout << "Operations failed: " << fail_ops << std::endl;
 }
 
-Task get_random_task(OP task_op)
+Task get_random_task(TaskType task_op)
 {
-    int key = (rand() % (N_INIT_LIST*10)) + 1;
+    int key = (rand() % (N_INIT_LIST * 5)) + 1;
 
     std::string val;
     val += alphanum[rand() % (sizeof(alphanum) - 1)];
@@ -121,15 +130,15 @@ void fill_tasks_vector(std::vector<Task>& tasks,
 
     for (int i = 0; i < n_inserts; i++)
     {
-        tasks.push_back(get_random_task(OP::INSERT));
+        tasks.push_back(get_random_task(TaskType::INSERT));
     }
     for (int i = 0; i < n_removes; i++)
     {
-        tasks.push_back(get_random_task(OP::REMOVE));
+        tasks.push_back(get_random_task(TaskType::REMOVE));
     }
     for (int i = 0; i < n_contains; i++)
     {
-        tasks.push_back(get_random_task(OP::CONTAINS));
+        tasks.push_back(get_random_task(TaskType::CONTAINS));
     }
 
     std::random_shuffle(tasks.begin(), tasks.end());
@@ -142,14 +151,14 @@ void print_tasks_vector(const std::vector<Task> tasks)
         const Task & task = tasks.at(i);
         switch (task.task_type)
         {
-            case OP::INSERT:
+            case TaskType::INSERT:
                 std::cout << "INSERT " << task.key << " " << task.val << std::endl;
                 break;
-            case OP::REMOVE:
+            case TaskType::REMOVE:
                 std::cout << "REMOVE " << task.key << " " << task.val << std::endl;
                 break;
-            case OP::CONTAINS:
-                std::cout << "CONTAI " << task.key << " " << task.val << std::endl;
+            case TaskType::CONTAINS:
+                std::cout << "CONTAINS " << task.key << " " << task.val << std::endl;
                 break;
         }
     }
@@ -176,8 +185,8 @@ int main(int argc, char *argv[]) {
     uint32_t n_threads = 1;
     uint32_t n_tasks = 10;
     uint32_t n_tasks_per_transaction = 2;
-    uint32_t x_of_100_inserts = 100;
-    uint32_t x_of_100_removes = 0;
+    uint32_t x_of_100_inserts = 45;
+    uint32_t x_of_100_removes = 45;
 
     //create random tasks:
     std::vector<Task> tasks;
