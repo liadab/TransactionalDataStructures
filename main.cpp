@@ -28,84 +28,120 @@ struct Task
 static const char alphanum[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 static const int N_INIT_LIST = 100;
 
-void commit_task_and_update_counters(const Task &task,
-                                     LinkedList<int, std::string> &LL,
-                                     int &cntr_inserts_occurred_in_transc,
-                                     int &cntr_removes_occurred_in_transc)
+struct ResultPrinter
 {
-    switch (task.task_type)
+    void print_results (int inserts_occurred, int removes_occurred, int succ_ops, int fail_ops)
     {
-        case TaskType::INSERT:
-            if (LL.put(task.key, task.val) == NULLOPT)
-            {
-                cntr_inserts_occurred_in_transc++;
-            }
-            break;
-        case TaskType::REMOVE:
-            if (!(LL.remove(task.key) == NULLOPT))
-            {
-                cntr_removes_occurred_in_transc++;
-            }
-            break;
-        case TaskType::CONTAINS:
-            LL.containsKey(task.key);
-            break;
+        std::lock_guard<std::mutex> locking(lock);
+
+        //std::cout << "\nLIST AT END:\n" << LL << std::endl;
+        std::cout << "Inserts occurred: " << inserts_occurred << std::endl;
+        std::cout << "Removes occurred: " << removes_occurred << std::endl;
+        std::cout << "Operations succeeded: " << succ_ops << std::endl;
+        std::cout << "Operations failed: " << fail_ops << std::endl;
     }
-}
+    std::mutex lock;
+};
 
-void work(const std::vector<Task>& tasks,
-           const int tasks_index_begin,
-           const int tasks_index_end,
-           LinkedList<int, std::string>& LL,
-           std::shared_ptr<TX> tx,
-           const int ops_per_transc)
+class Worker
 {
-    int succ_ops = 0;
-    int fail_ops = 0;
-    int inserts_occurred = 0;
-    int removes_occurred = 0;
+public:
 
-    int cntr_ops_in_transc = 0;
-    int cntr_inserts_occurred_in_tx = 0;
-    int cntr_removes_occurred_in_tx = 0;
+    Worker(const std::vector<Task>& _tasks,
+           const int _tasks_index_begin,
+           const int _tasks_index_end,
+           LinkedList<int, std::string>& _LL,
+           std::shared_ptr<TX> _tx,
+           const int _ops_per_transc,
+           ResultPrinter& _result_printer):
+                   tasks(_tasks),
+                   tasks_index_begin(_tasks_index_begin),
+                   tasks_index_end(_tasks_index_end),
+                   LL(_LL),
+                   tx(_tx),
+                   ops_per_transc(_ops_per_transc),
+                   result_printer(_result_printer)
+    {}
 
-    for (unsigned int i = tasks_index_begin; i < tasks_index_end; i++) {
-        try {
-            if (cntr_ops_in_transc == 0)
-            {
-                tx->TXbegin();
+    void work()
+    {
+        int cntr_ops_in_transc = 0;
+        int cntr_inserts_occurred_in_tx = 0;
+        int cntr_removes_occurred_in_tx = 0;
+
+        for (unsigned int index_task = tasks_index_begin; index_task < tasks_index_end; index_task++) {
+            try {
+                if (cntr_ops_in_transc == 0)
+                {
+                    tx->TXbegin();
+                }
+                cntr_ops_in_transc++;
+                commit_task_and_update_counters(index_task, cntr_inserts_occurred_in_tx, cntr_removes_occurred_in_tx);
+
+                if (cntr_ops_in_transc == ops_per_transc || index_task == tasks_index_end - 1)
+                {
+                    tx->TXend<int, std::string>();
+
+                    inserts_occurred += cntr_inserts_occurred_in_tx;
+                    removes_occurred += cntr_removes_occurred_in_tx;
+                    succ_ops += cntr_ops_in_transc;
+
+                    cntr_ops_in_transc = 0;
+                    cntr_inserts_occurred_in_tx = 0;
+                    cntr_removes_occurred_in_tx = 0;
+                }
             }
-            cntr_ops_in_transc++;
-            commit_task_and_update_counters(tasks.at(i), LL, cntr_inserts_occurred_in_tx, cntr_removes_occurred_in_tx);
-
-            if (cntr_ops_in_transc == ops_per_transc || i == tasks_index_end - 1)
+            catch(TxAbortException& e)
             {
-                tx->TXend<int, std::string>();
-
-                inserts_occurred += cntr_inserts_occurred_in_tx;
-                removes_occurred += cntr_removes_occurred_in_tx;
-                succ_ops += cntr_ops_in_transc;
+                fail_ops += cntr_ops_in_transc;
 
                 cntr_ops_in_transc = 0;
                 cntr_inserts_occurred_in_tx = 0;
                 cntr_removes_occurred_in_tx = 0;
             }
         }
-        catch(TxAbortException& e)
-        {
-            fail_ops += cntr_ops_in_transc;
+        result_printer.print_results(inserts_occurred, removes_occurred, succ_ops, fail_ops);
+    }
 
-            cntr_ops_in_transc = 0;
-            cntr_inserts_occurred_in_tx = 0;
-            cntr_removes_occurred_in_tx = 0;
+private:
+    const std::vector<Task>& tasks;
+    const int tasks_index_begin;
+    const int tasks_index_end;
+    LinkedList<int, std::string>& LL;
+    std::shared_ptr<TX> tx;
+    const int ops_per_transc;
+    ResultPrinter& result_printer;
+
+    int succ_ops = 0;
+    int fail_ops = 0;
+    int inserts_occurred = 0;
+    int removes_occurred = 0;
+
+    void commit_task_and_update_counters(int index_task,
+                                         int &cntr_inserts_occurred_in_transc,
+                                         int &cntr_removes_occurred_in_transc)
+    {
+        Task task = tasks.at(index_task);
+        switch (task.task_type)
+        {
+            case TaskType::INSERT:
+                if (LL.put(task.key, task.val) == NULLOPT)
+                {
+                    cntr_inserts_occurred_in_transc++;
+                }
+                break;
+            case TaskType::REMOVE:
+                if (!(LL.remove(task.key) == NULLOPT))
+                {
+                    cntr_removes_occurred_in_transc++;
+                }
+                break;
+            case TaskType::CONTAINS:
+                LL.containsKey(task.key);
+                break;
         }
     }
-    std::cout << "\nLIST AT END:\n" << LL << std::endl;
-    std::cout << "Inserts occurred: " << inserts_occurred << std::endl;
-    std::cout << "Removes occurred: " << removes_occurred << std::endl;
-    std::cout << "Operations succeeded: " << succ_ops << std::endl;
-    std::cout << "Operations failed: " << fail_ops << std::endl;
-}
+};
 
 Task get_random_task(TaskType task_op)
 {
@@ -182,8 +218,8 @@ int init_linked_list(LinkedList<int, std::string>& LL, std::shared_ptr<TX> tx)
 
 int main(int argc, char *argv[]) {
     //parameters:
-    uint32_t n_threads = 1;
-    uint32_t n_tasks = 10;
+    uint32_t n_threads = 2;
+    uint32_t n_tasks = 100;
     uint32_t n_tasks_per_transaction = 2;
     uint32_t x_of_100_inserts = 45;
     uint32_t x_of_100_removes = 45;
@@ -198,22 +234,29 @@ int main(int argc, char *argv[]) {
     LinkedList<int, std::string> linked_list(tx);
 
     //init linked list:
-//    int init_LL_size = init_linked_list(linked_list, tx);
-//    std::cout << "linked list size:" << init_LL_size << std::endl;
+    int init_LL_size = init_linked_list(linked_list, tx);
+    //std::cout << "linked list size:" << init_LL_size << std::endl;
 
     //create workers:
-    std::vector<std::thread> threads;
-    for (size_t i = 0; i < n_threads; ++i) {
+    ResultPrinter result_printer;
+    std::vector<Worker> workers;
+    for (size_t i = 0; i < n_threads; i++)
+    {
         int index_begin = i * n_tasks / n_threads;
         int index_end = (i + 1) * n_tasks / n_threads;
 
-        threads.emplace_back([&tasks, index_begin, index_end, &linked_list, tx, n_tasks, n_tasks_per_transaction]() {
-            work(tasks, index_begin, index_end, linked_list, tx, n_tasks_per_transaction);
-        });
+        workers.push_back(Worker(tasks, index_begin, index_end, linked_list, tx, n_tasks_per_transaction, result_printer));
     }
-    //wait for workers:
-    for (auto &t : threads) {
-        t.join();
+
+    //run workers:
+    std::vector<std::thread> threads;
+    for (auto &worker: workers)
+    {
+        threads.push_back(std::thread( [&]{ worker.work(); } ));
+    }
+    for (auto &thread: threads)
+    {
+        thread.join();
     }
 
     //done:
