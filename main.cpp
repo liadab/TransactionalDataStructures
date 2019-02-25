@@ -207,7 +207,7 @@ int init_linked_list(LinkedList<int, std::string>& LL, std::shared_ptr<TX> tx)
 }
 
 void print_results(std::vector<std::future<thread_counters>>& workers_results, int linked_list_init_size, int n_threads,
-                   std::chrono::duration<double>& running_time_sec)
+                   double& running_time_sec)
 {
     int total_linked_list_size = linked_list_init_size;
     int total_ops_succeed = 0;
@@ -238,7 +238,7 @@ void print_results(std::vector<std::future<thread_counters>>& workers_results, i
     std::cout << "total ops failed: " << total_ops_failed << std::endl;
     std::cout << "total LL size: " << total_linked_list_size << std::endl;
 
-    std::cout << "total running time in secs: " << running_time_sec.count() << std::endl;
+    std::cout << "total running time in secs: " << running_time_sec << std::endl;
 }
 
 int main(int argc, char *argv[]) {
@@ -278,6 +278,7 @@ int main(int argc, char *argv[]) {
         workers.push_back(Worker(tasks, index_begin, index_end, linked_list, tx, n_tasks_per_transaction));
     }
 
+    //measure time start:
     auto start_time = std::chrono::high_resolution_clock::now();
 
     //run workers:
@@ -297,11 +298,11 @@ int main(int argc, char *argv[]) {
          thread.join();
     }
 
+    //measure time end:
     auto end_time = std::chrono::high_resolution_clock::now();
 
-    //done:
-    std::cout << "DONE" << std::endl;
-    std::chrono::duration<double> running_time_sec = end_time - start_time;
+    //print results:
+    double running_time_sec = (end_time - start_time).count();
     print_results(workers_results, init_LL_size, n_threads, running_time_sec);
     return 0;
 }
@@ -323,30 +324,3 @@ int main(int argc, char *argv[]) {
 //            {CONTAINS, 2, DUMMY_VAL},
 //            {CONTAINS, 4, DUMMY_VAL}
 //    };
-//{
-//succ_ops.emplace_back(0);
-//fail_ops.emplace_back(0);
-//inserts_occurred.emplace_back(0);
-//removes_occurred.emplace_back(0);
-//
-//Worker(tasks,
-//0,
-//n_tasks,
-//linked_list,
-//tx,
-//n_tasks_per_transaction,
-//succ_ops.at(0),
-//fail_ops.at(0),
-//inserts_occurred.at(0),
-//removes_occurred.at(0)).work();
-//
-//std::cout << "DONE" << std::endl;
-//print_results(succ_ops, fail_ops, inserts_occurred, removes_occurred, init_LL_size, 1);
-//
-//
-//}
-
-//    for (auto &worker: workers)
-//    {
-//        threads.push_back(std::thread( [&]{ worker.work(); } ));
-//    }
