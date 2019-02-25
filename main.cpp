@@ -204,48 +204,20 @@ int init_linked_list(LinkedList<int, std::string>& LL, std::shared_ptr<TX> tx)
     return init_LL_size;
 }
 
-void print_results(std::vector<int> succ_ops, std::vector<int> fail_ops,
-                   std::vector<int> inserts_occurred, std::vector<int> removes_occurred,
-                   int linked_list_init_size, int n_threads)
+void print_results(std::vector<std::future<thread_counters>>& workers_results, int linked_list_init_size, int n_threads)
 {
     int total_linked_list_size = linked_list_init_size;
     int total_ops_succeed = 0;
     int total_ops_failed = 0;
 
-    for (int i = 0; i < n_threads; i++)
-    {
-        std::cout << "\nThread " << i << std::endl;
-        std::cout << "inserts occurred:" << inserts_occurred.at(i) << std::endl;
-        std::cout << "removes occurred:" << removes_occurred.at(i) << std::endl;
-        std::cout << "succ ops:" << succ_ops.at(i) << std::endl;
-        std::cout << "fail ops:" << fail_ops.at(i) << std::endl;
-
-        total_linked_list_size += inserts_occurred.at(i);
-        total_linked_list_size -= removes_occurred.at(i);
-        total_ops_succeed += succ_ops.at(i);
-        total_ops_failed += fail_ops.at(i);
-    }
-
-    std::cout << "\n////////\nToatl: " << std::endl;
-    std::cout << "total ops succeed: " << total_ops_succeed << std::endl;
-    std::cout << "total ops failed: " << total_ops_failed << std::endl;
-    std::cout << "total LL size: " << total_linked_list_size << std::endl;
-}
-
-void print_results_2(std::vector<std::future<thread_counters>>& workers_results, int linked_list_init_size, int n_threads)
-{
-    int total_linked_list_size = linked_list_init_size;
-    int total_ops_succeed = 0;
-    int total_ops_failed = 0;
-
-    int succ_ops = 0;
-    int fail_ops = 0;
     int inserts_occurred = 0;
     int removes_occurred = 0;
+    int succ_ops = 0;
+    int fail_ops = 0;
 
     for (int i = 0; i < n_threads; i++)
     {
-        std::tie(succ_ops, fail_ops, inserts_occurred, removes_occurred) = workers_results.at(i).get();
+        std::tie(inserts_occurred, removes_occurred, succ_ops, fail_ops) = workers_results.at(i).get();
         std::cout << "\nThread " << i << std::endl;
         std::cout << "inserts occurred:" << inserts_occurred << std::endl;
         std::cout << "removes occurred:" << removes_occurred << std::endl;
@@ -287,16 +259,16 @@ int main(int argc, char *argv[]) {
 
     //create workers:
     std::vector<Worker> workers;
-    std::vector<std::promise<thread_counters>> workers_promises;
+    std::vector<std::promise<thread_counters>> workers_results_containers;
     std::vector<std::future<thread_counters>> workers_results;
 
     for (size_t i = 0; i < n_threads; i++)
     {
-        workers_promises.push_back(std::promise<thread_counters>());
-        workers_results.push_back(workers_promises.at(i).get_future());
-
         int index_begin = i * n_tasks / n_threads;
         int index_end = (i + 1) * n_tasks / n_threads;
+
+        workers_results_containers.push_back(std::promise<thread_counters>());
+        workers_results.push_back(workers_results_containers.at(i).get_future());
 
         workers.push_back(Worker(tasks, index_begin, index_end, linked_list, tx, n_tasks_per_transaction));
     }
@@ -305,8 +277,14 @@ int main(int argc, char *argv[]) {
     std::vector<std::thread> threads;
     for (size_t i = 0; i < n_threads; i++)
     {
-        threads.push_back(std::thread([i, &workers, &workers_promises]{ workers.at(i).work(std::move(workers_promises.at(i))); }));
+        threads.push_back(std::thread(
+                [i, &workers, &workers_results_containers]
+                {
+                    workers.at(i).work(std::move(workers_results_containers.at(i)));
+                }
+                ));
     }
+
     for (auto &thread: threads)
     {
          thread.join();
@@ -314,7 +292,7 @@ int main(int argc, char *argv[]) {
 
     //done:
     std::cout << "DONE" << std::endl;
-    print_results_2(workers_results, init_LL_size, n_threads);
+    print_results(workers_results, init_LL_size, n_threads);
     return 0;
 }
 
