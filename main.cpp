@@ -219,10 +219,10 @@ void print_results(std::vector<int> succ_ops, std::vector<int> fail_ops,
     for (int i = 0; i < n_threads; i++)
     {
         std::cout << "\nThread " << i << std::endl;
-        std::cout << "succ ops:" << succ_ops.at(i) << std::endl;
-        std::cout << "fail ops:" << fail_ops.at(i) << std::endl;
         std::cout << "inserts occurred:" << inserts_occurred.at(i) << std::endl;
         std::cout << "removes occurred:" << removes_occurred.at(i) << std::endl;
+        std::cout << "succ ops:" << succ_ops.at(i) << std::endl;
+        std::cout << "fail ops:" << fail_ops.at(i) << std::endl;
 
         total_linked_list_size += inserts_occurred.at(i);
         total_linked_list_size -= removes_occurred.at(i);
@@ -231,9 +231,9 @@ void print_results(std::vector<int> succ_ops, std::vector<int> fail_ops,
     }
 
     std::cout << "\n////////\nToatl: " << std::endl;
-    std::cout << "total ops succeed:" << total_ops_succeed << std::endl;
-    std::cout << "total ops failed" << total_ops_failed << std::endl;
-    std::cout << "total LL size:" << total_linked_list_size << std::endl;
+    std::cout << "total ops succeed: " << total_ops_succeed << std::endl;
+    std::cout << "total ops failed: " << total_ops_failed << std::endl;
+    std::cout << "total LL size: " << total_linked_list_size << std::endl;
 }
 
 int main(int argc, char *argv[]) {
@@ -268,10 +268,10 @@ int main(int argc, char *argv[]) {
         int index_begin = i * n_tasks / n_threads;
         int index_end = (i + 1) * n_tasks / n_threads;
 
-        succ_ops.push_back(0);
-        fail_ops.push_back(0);
-        inserts_occurred.push_back(0);
-        removes_occurred.push_back(0);
+        succ_ops.emplace_back(0);
+        fail_ops.emplace_back(0);
+        inserts_occurred.emplace_back(0);
+        removes_occurred.emplace_back(0);
 
         workers.push_back(Worker(tasks,
                                  index_begin,
@@ -293,7 +293,7 @@ int main(int argc, char *argv[]) {
     }
     for (auto &thread: threads)
     {
-        thread.join();
+         thread.join();
     }
 
     //done:
