@@ -35,7 +35,7 @@ struct ResultPrinter
         std::lock_guard<std::mutex> locking(lock);
 
         //std::cout << "\nLIST AT END:\n" << LL << std::endl;
-        std::cout << "Inserts occurred: " << inserts_occurred << std::endl;
+        std::cout << "\nInserts occurred: " << inserts_occurred << std::endl;
         std::cout << "Removes occurred: " << removes_occurred << std::endl;
         std::cout << "Operations succeeded: " << succ_ops << std::endl;
         std::cout << "Operations failed: " << fail_ops << std::endl;
@@ -148,9 +148,12 @@ Task get_random_task(TaskType task_op)
     int key = (rand() % (N_INIT_LIST * 5)) + 1;
 
     std::string val;
-    val += alphanum[rand() % (sizeof(alphanum) - 1)];
-    val += alphanum[rand() % (sizeof(alphanum) - 1)];
-    val += alphanum[rand() % (sizeof(alphanum) - 1)];
+    if (task_op == TaskType::INSERT)
+    {
+        val += alphanum[rand() % (sizeof(alphanum) - 1)];
+        val += alphanum[rand() % (sizeof(alphanum) - 1)];
+        val += alphanum[rand() % (sizeof(alphanum) - 1)];
+    }
 
     return {task_op, key, val};
 }
@@ -235,7 +238,7 @@ int main(int argc, char *argv[]) {
 
     //init linked list:
     int init_LL_size = init_linked_list(linked_list, tx);
-    //std::cout << "linked list size:" << init_LL_size << std::endl;
+    std::cout << "linked list size:" << init_LL_size << std::endl;
 
     //create workers:
     ResultPrinter result_printer;
