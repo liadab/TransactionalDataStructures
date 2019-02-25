@@ -207,7 +207,7 @@ int init_linked_list(LinkedList<int, std::string>& LL, std::shared_ptr<TX> tx)
 }
 
 void print_results(std::vector<std::future<thread_counters>>& workers_results, int linked_list_init_size, int n_threads,
-                   float& running_time_sec)
+                   std::chrono::duration<double>& running_time_sec)
 {
     int total_linked_list_size = linked_list_init_size;
     int total_ops_succeed = 0;
@@ -237,7 +237,8 @@ void print_results(std::vector<std::future<thread_counters>>& workers_results, i
     std::cout << "total ops succeed: " << total_ops_succeed << std::endl;
     std::cout << "total ops failed: " << total_ops_failed << std::endl;
     std::cout << "total LL size: " << total_linked_list_size << std::endl;
-    std::cout << "total running time in secs: " << running_time_sec << std::endl;
+
+    std::cout << "total running time in secs: " << running_time_sec.count() << std::endl;
 }
 
 int main(int argc, char *argv[]) {
@@ -300,8 +301,9 @@ int main(int argc, char *argv[]) {
     //measure time end:
     auto end_time = std::chrono::high_resolution_clock::now();
 
-    //print results:
-    float running_time_sec = (end_time - start_time).count();
+    //done and print results:
+    std::cout << "DONE" << std::endl;
+    std::chrono::duration<double> running_time_sec = end_time - start_time;
     print_results(workers_results, init_LL_size, n_threads, running_time_sec);
     return 0;
 }
