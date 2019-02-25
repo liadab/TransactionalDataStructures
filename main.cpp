@@ -26,22 +26,7 @@ struct Task
 };
 
 static const char alphanum[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-static const int N_INIT_LIST = 100;
-
-struct ResultPrinter
-{
-    void print_results (int inserts_occurred, int removes_occurred, int succ_ops, int fail_ops)
-    {
-        std::lock_guard<std::mutex> locking(lock);
-
-        //std::cout << "\nLIST AT END:\n" << LL << std::endl;
-        std::cout << "\nInserts occurred: " << inserts_occurred << std::endl;
-        std::cout << "Removes occurred: " << removes_occurred << std::endl;
-        std::cout << "Operations succeeded: " << succ_ops << std::endl;
-        std::cout << "Operations failed: " << fail_ops << std::endl;
-    }
-    std::mutex lock;
-};
+static const int N_INIT_LIST = 1000;
 
 class Worker
 {
@@ -53,14 +38,20 @@ public:
            LinkedList<int, std::string>& _LL,
            std::shared_ptr<TX> _tx,
            const int _ops_per_transc,
-           ResultPrinter& _result_printer):
+           int& _succ_ops,
+           int& _fail_ops,
+           int& _inserts_occurred,
+           int& _removes_occurred):
                    tasks(_tasks),
                    tasks_index_begin(_tasks_index_begin),
                    tasks_index_end(_tasks_index_end),
                    LL(_LL),
                    tx(_tx),
                    ops_per_transc(_ops_per_transc),
-                   result_printer(_result_printer)
+                   succ_ops(_succ_ops),
+                   fail_ops(_fail_ops),
+                   inserts_occurred(_inserts_occurred),
+                   removes_occurred(_removes_occurred)
     {}
 
     void work()
@@ -100,7 +91,6 @@ public:
                 cntr_removes_occurred_in_tx = 0;
             }
         }
-        result_printer.print_results(inserts_occurred, removes_occurred, succ_ops, fail_ops);
     }
 
 private:
@@ -110,12 +100,11 @@ private:
     LinkedList<int, std::string>& LL;
     std::shared_ptr<TX> tx;
     const int ops_per_transc;
-    ResultPrinter& result_printer;
 
-    int succ_ops = 0;
-    int fail_ops = 0;
-    int inserts_occurred = 0;
-    int removes_occurred = 0;
+    int& succ_ops;
+    int& fail_ops;
+    int& inserts_occurred;
+    int& removes_occurred;
 
     void commit_task_and_update_counters(int index_task,
                                          int &cntr_inserts_occurred_in_transc,
@@ -219,6 +208,34 @@ int init_linked_list(LinkedList<int, std::string>& LL, std::shared_ptr<TX> tx)
     return init_LL_size;
 }
 
+void print_results(std::vector<int> succ_ops, std::vector<int> fail_ops,
+                   std::vector<int> inserts_occurred, std::vector<int> removes_occurred,
+                   int linked_list_init_size, int n_threads)
+{
+    int total_linked_list_size = linked_list_init_size;
+    int total_ops_succeed = 0;
+    int total_ops_failed = 0;
+
+    for (int i = 0; i < n_threads; i++)
+    {
+        std::cout << "\nThread " << i << std::endl;
+        std::cout << "succ ops:" << succ_ops.at(i) << std::endl;
+        std::cout << "fail ops:" << fail_ops.at(i) << std::endl;
+        std::cout << "inserts occurred:" << inserts_occurred.at(i) << std::endl;
+        std::cout << "removes occurred:" << removes_occurred.at(i) << std::endl;
+
+        total_linked_list_size += inserts_occurred.at(i);
+        total_linked_list_size -= removes_occurred.at(i);
+        total_ops_succeed += succ_ops.at(i);
+        total_ops_failed += fail_ops.at(i);
+    }
+
+    std::cout << "\n////////\nToatl: " << std::endl;
+    std::cout << "total ops succeed:" << total_ops_succeed << std::endl;
+    std::cout << "total ops failed" << total_ops_failed << std::endl;
+    std::cout << "total LL size:" << total_linked_list_size << std::endl;
+}
+
 int main(int argc, char *argv[]) {
     //parameters:
     uint32_t n_threads = std::atoi(argv[1]);
@@ -226,12 +243,11 @@ int main(int argc, char *argv[]) {
     uint32_t n_tasks_per_transaction = std::atoi(argv[3]);
     uint32_t x_of_100_inserts = std::atoi(argv[4]);
     uint32_t x_of_100_removes = std::atoi(argv[5]);
-    uint32_t is_debug_version = std::atoi(argv[6]);
 
     //create random tasks:
     std::vector<Task> tasks;
     fill_tasks_vector(tasks, n_tasks, x_of_100_inserts, x_of_100_removes);
-//    print_tasks_vector(tasks); //for debug
+    //print_tasks_vector(tasks); //for debug
 
     //create linked list:
     std::shared_ptr<TX> tx = std::make_shared<TX>();
@@ -241,25 +257,32 @@ int main(int argc, char *argv[]) {
     int init_LL_size = init_linked_list(linked_list, tx);
     std::cout << "linked list size:" << init_LL_size << std::endl;
 
-    ResultPrinter result_printer;
-
-    if (is_debug_version) //TODO remove
-    {
-        Worker worker(tasks, 0, n_tasks, linked_list, tx, n_tasks_per_transaction, result_printer);
-        worker.work();
-
-        std::cout << "DONE" << std::endl;
-        return 0;
-    }
-
     //create workers:
     std::vector<Worker> workers;
+    std::vector<int> succ_ops;
+    std::vector<int> fail_ops;
+    std::vector<int> inserts_occurred;
+    std::vector<int> removes_occurred;
     for (size_t i = 0; i < n_threads; i++)
     {
         int index_begin = i * n_tasks / n_threads;
         int index_end = (i + 1) * n_tasks / n_threads;
 
-        workers.push_back(Worker(tasks, index_begin, index_end, linked_list, tx, n_tasks_per_transaction, result_printer));
+        succ_ops.push_back(0);
+        fail_ops.push_back(0);
+        inserts_occurred.push_back(0);
+        removes_occurred.push_back(0);
+
+        workers.push_back(Worker(tasks,
+                                 index_begin,
+                                 index_end,
+                                 linked_list,
+                                 tx,
+                                 n_tasks_per_transaction,
+                                 succ_ops.at(i),
+                                 fail_ops.at(i),
+                                 inserts_occurred.at(i),
+                                 removes_occurred.at(i)));
     }
 
     //run workers:
@@ -275,6 +298,7 @@ int main(int argc, char *argv[]) {
 
     //done:
     std::cout << "DONE" << std::endl;
+    print_results(succ_ops, fail_ops, inserts_occurred, removes_occurred, init_LL_size, n_threads);
     return 0;
 }
 
