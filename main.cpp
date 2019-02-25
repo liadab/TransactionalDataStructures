@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <stdlib.h>
+#include <ctime>
 #include "algorithm"
 
 #include "nodes/LNode.h"
@@ -204,7 +205,8 @@ int init_linked_list(LinkedList<int, std::string>& LL, std::shared_ptr<TX> tx)
     return init_LL_size;
 }
 
-void print_results(std::vector<std::future<thread_counters>>& workers_results, int linked_list_init_size, int n_threads)
+void print_results(std::vector<std::future<thread_counters>>& workers_results, int linked_list_init_size, int n_threads,
+        std::clock_t& start_time, std::clock_t& end_time)
 {
     int total_linked_list_size = linked_list_init_size;
     int total_ops_succeed = 0;
@@ -234,6 +236,9 @@ void print_results(std::vector<std::future<thread_counters>>& workers_results, i
     std::cout << "total ops succeed: " << total_ops_succeed << std::endl;
     std::cout << "total ops failed: " << total_ops_failed << std::endl;
     std::cout << "total LL size: " << total_linked_list_size << std::endl;
+
+    double elapsed_secs = double(end_time - start_time) / CLOCKS_PER_SEC;
+    std::cout << "total running time in secs: " << elapsed_secs << std::endl;
 }
 
 int main(int argc, char *argv[]) {
@@ -273,6 +278,8 @@ int main(int argc, char *argv[]) {
         workers.push_back(Worker(tasks, index_begin, index_end, linked_list, tx, n_tasks_per_transaction));
     }
 
+    std::clock_t start_time = std::clock();
+
     //run workers:
     std::vector<std::thread> threads;
     for (size_t i = 0; i < n_threads; i++)
@@ -290,9 +297,11 @@ int main(int argc, char *argv[]) {
          thread.join();
     }
 
+    std::clock_t end_time = std::clock();
+
     //done:
     std::cout << "DONE" << std::endl;
-    print_results(workers_results, init_LL_size, n_threads);
+    print_results(workers_results, init_LL_size, n_threads, start_time, end_time);
     return 0;
 }
 
