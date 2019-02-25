@@ -1,5 +1,6 @@
 #include <iostream>
 #include <thread>
+#include <future>
 #include <string>
 #include <vector>
 #include <stdlib.h>
@@ -10,6 +11,8 @@
 #include "datatypes/LinkedList.h"
 //#include "nodes/utils.h"
 //#include "nodes/Index.h"
+
+using thread_counters = std::tuple<int, int, int, int>;
 
 enum TaskType
 {
@@ -37,24 +40,16 @@ public:
            const int _tasks_index_end,
            LinkedList<int, std::string>& _LL,
            std::shared_ptr<TX> _tx,
-           const int _ops_per_transc,
-           int& _succ_ops,
-           int& _fail_ops,
-           int& _inserts_occurred,
-           int& _removes_occurred):
+           const int _ops_per_transc):
                    tasks(_tasks),
                    tasks_index_begin(_tasks_index_begin),
                    tasks_index_end(_tasks_index_end),
                    LL(_LL),
                    tx(_tx),
-                   ops_per_transc(_ops_per_transc),
-                   succ_ops(_succ_ops),
-                   fail_ops(_fail_ops),
-                   inserts_occurred(_inserts_occurred),
-                   removes_occurred(_removes_occurred)
+                   ops_per_transc(_ops_per_transc)
     {}
 
-    void work()
+    void work(std::promise<thread_counters>&& ret)
     {
         int cntr_ops_in_transc = 0;
         int cntr_inserts_occurred_in_tx = 0;
@@ -91,6 +86,7 @@ public:
                 cntr_removes_occurred_in_tx = 0;
             }
         }
+        ret.set_value(std::tie(inserts_occurred, removes_occurred, succ_ops, fail_ops));
     }
 
 private:
@@ -101,10 +97,10 @@ private:
     std::shared_ptr<TX> tx;
     const int ops_per_transc;
 
-    int& succ_ops;
-    int& fail_ops;
-    int& inserts_occurred;
-    int& removes_occurred;
+    int succ_ops = 0;
+    int fail_ops = 0;
+    int inserts_occurred = 0;
+    int removes_occurred = 0;
 
     void commit_task_and_update_counters(int index_task,
                                          int &cntr_inserts_occurred_in_transc,
@@ -236,6 +232,38 @@ void print_results(std::vector<int> succ_ops, std::vector<int> fail_ops,
     std::cout << "total LL size: " << total_linked_list_size << std::endl;
 }
 
+void print_results_2(std::vector<std::future<thread_counters>>& workers_results, int linked_list_init_size, int n_threads)
+{
+    int total_linked_list_size = linked_list_init_size;
+    int total_ops_succeed = 0;
+    int total_ops_failed = 0;
+
+    int succ_ops = 0;
+    int fail_ops = 0;
+    int inserts_occurred = 0;
+    int removes_occurred = 0;
+
+    for (int i = 0; i < n_threads; i++)
+    {
+        std::tie(succ_ops, fail_ops, inserts_occurred, removes_occurred) = workers_results.at(i).get();
+        std::cout << "\nThread " << i << std::endl;
+        std::cout << "inserts occurred:" << inserts_occurred << std::endl;
+        std::cout << "removes occurred:" << removes_occurred << std::endl;
+        std::cout << "succ ops:" << succ_ops << std::endl;
+        std::cout << "fail ops:" << fail_ops << std::endl;
+
+        total_linked_list_size += inserts_occurred;
+        total_linked_list_size -= removes_occurred;
+        total_ops_succeed += succ_ops;
+        total_ops_failed += fail_ops;
+    }
+
+    std::cout << "\n////////\nToatl: " << std::endl;
+    std::cout << "total ops succeed: " << total_ops_succeed << std::endl;
+    std::cout << "total ops failed: " << total_ops_failed << std::endl;
+    std::cout << "total LL size: " << total_linked_list_size << std::endl;
+}
+
 int main(int argc, char *argv[]) {
     //parameters:
     uint32_t n_threads = std::atoi(argv[1]);
@@ -259,37 +287,25 @@ int main(int argc, char *argv[]) {
 
     //create workers:
     std::vector<Worker> workers;
-    std::vector<int> succ_ops;
-    std::vector<int> fail_ops;
-    std::vector<int> inserts_occurred;
-    std::vector<int> removes_occurred;
+    std::vector<std::promise<thread_counters>> workers_promises;
+    std::vector<std::future<thread_counters>> workers_results;
+
     for (size_t i = 0; i < n_threads; i++)
     {
+        workers_promises.push_back(std::promise<thread_counters>());
+        workers_results.push_back(workers_promises.at(i).get_future());
+
         int index_begin = i * n_tasks / n_threads;
         int index_end = (i + 1) * n_tasks / n_threads;
 
-        succ_ops.emplace_back(0);
-        fail_ops.emplace_back(0);
-        inserts_occurred.emplace_back(0);
-        removes_occurred.emplace_back(0);
-
-        workers.push_back(Worker(tasks,
-                                 index_begin,
-                                 index_end,
-                                 linked_list,
-                                 tx,
-                                 n_tasks_per_transaction,
-                                 succ_ops.at(i),
-                                 fail_ops.at(i),
-                                 inserts_occurred.at(i),
-                                 removes_occurred.at(i)));
+        workers.push_back(Worker(tasks, index_begin, index_end, linked_list, tx, n_tasks_per_transaction));
     }
 
     //run workers:
     std::vector<std::thread> threads;
-    for (auto &worker: workers)
+    for (size_t i = 0; i < n_threads; i++)
     {
-        threads.push_back(std::thread( [&]{ worker.work(); } ));
+        threads.push_back(std::thread([i, &workers, &workers_promises]{ workers.at(i).work(std::move(workers_promises.at(i))); }));
     }
     for (auto &thread: threads)
     {
@@ -298,7 +314,7 @@ int main(int argc, char *argv[]) {
 
     //done:
     std::cout << "DONE" << std::endl;
-    print_results(succ_ops, fail_ops, inserts_occurred, removes_occurred, init_LL_size, n_threads);
+    print_results_2(workers_results, init_LL_size, n_threads);
     return 0;
 }
 
@@ -319,3 +335,30 @@ int main(int argc, char *argv[]) {
 //            {CONTAINS, 2, DUMMY_VAL},
 //            {CONTAINS, 4, DUMMY_VAL}
 //    };
+//{
+//succ_ops.emplace_back(0);
+//fail_ops.emplace_back(0);
+//inserts_occurred.emplace_back(0);
+//removes_occurred.emplace_back(0);
+//
+//Worker(tasks,
+//0,
+//n_tasks,
+//linked_list,
+//tx,
+//n_tasks_per_transaction,
+//succ_ops.at(0),
+//fail_ops.at(0),
+//inserts_occurred.at(0),
+//removes_occurred.at(0)).work();
+//
+//std::cout << "DONE" << std::endl;
+//print_results(succ_ops, fail_ops, inserts_occurred, removes_occurred, init_LL_size, 1);
+//
+//
+//}
+
+//    for (auto &worker: workers)
+//    {
+//        threads.push_back(std::thread( [&]{ worker.work(); } ));
+//    }
