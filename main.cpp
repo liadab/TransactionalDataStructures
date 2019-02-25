@@ -238,7 +238,8 @@ void print_results(std::vector<std::future<thread_counters>>& workers_results, i
     std::cout << "total ops failed: " << total_ops_failed << std::endl;
     std::cout << "total LL size: " << total_linked_list_size << std::endl;
 
-    std::cout << "total running time in secs: " << running_time_sec << std::endl;
+    std::cout.precision(5);
+    std::cout << "total running time in secs: " << std::fixed << running_time_sec << std::endl;
 }
 
 int main(int argc, char *argv[]) {
