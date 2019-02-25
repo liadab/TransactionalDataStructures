@@ -51,7 +51,7 @@ public:
                    ops_per_transc(_ops_per_transc)
     {}
 
-    void work(std::promise<thread_counters>&& ret)
+    void work()
     {
         int cntr_ops_in_transc = 0;
         int cntr_inserts_occurred_in_tx = 0;
@@ -88,8 +88,15 @@ public:
                 cntr_removes_occurred_in_tx = 0;
             }
         }
-        ret.set_value(std::tie(inserts_occurred, removes_occurred, succ_ops, fail_ops));
     }
+
+    int getSucc_ops() const { return succ_ops; }
+
+    int getFail_ops() const { return fail_ops; }
+
+    int getInserts_occurred() const { return inserts_occurred; }
+
+    int getRemoves_occurred() const { return removes_occurred; }
 
 private:
     const std::vector<Task>& tasks;
@@ -206,21 +213,20 @@ int init_linked_list(LinkedList<int, std::string>& LL, std::shared_ptr<TX> tx)
     return init_LL_size;
 }
 
-void print_results(std::vector<std::future<thread_counters>>& workers_results, int linked_list_init_size, int n_threads,
+void print_results(std::vector<Worker>& workers, int linked_list_init_size, int n_threads,
                    std::chrono::duration<double>& running_time_sec)
 {
     int total_linked_list_size = linked_list_init_size;
     int total_ops_succeed = 0;
     int total_ops_failed = 0;
 
-    int inserts_occurred = 0;
-    int removes_occurred = 0;
-    int succ_ops = 0;
-    int fail_ops = 0;
-
     for (int i = 0; i < n_threads; i++)
     {
-        std::tie(inserts_occurred, removes_occurred, succ_ops, fail_ops) = workers_results.at(i).get();
+        int inserts_occurred = workers.at(i).getInserts_occurred();
+        int removes_occurred = workers.at(i).getRemoves_occurred();
+        int succ_ops = workers.at(i).getSucc_ops();
+        int fail_ops = workers.at(i).getFail_ops();
+
         std::cout << "\nThread " << i << std::endl;
         std::cout << "inserts occurred:" << inserts_occurred << std::endl;
         std::cout << "removes occurred:" << removes_occurred << std::endl;
@@ -264,16 +270,11 @@ int main(int argc, char *argv[]) {
 
     //create workers:
     std::vector<Worker> workers;
-    std::vector<std::promise<thread_counters>> workers_results_containers;
-    std::vector<std::future<thread_counters>> workers_results;
 
     for (size_t i = 0; i < n_threads; i++)
     {
         int index_begin = i * n_tasks / n_threads;
         int index_end = (i + 1) * n_tasks / n_threads;
-
-        workers_results_containers.push_back(std::promise<thread_counters>());
-        workers_results.push_back(workers_results_containers.at(i).get_future());
 
         workers.push_back(Worker(tasks, index_begin, index_end, linked_list, tx, n_tasks_per_transaction));
     }
@@ -283,16 +284,10 @@ int main(int argc, char *argv[]) {
 
     //run workers:
     std::vector<std::thread> threads;
-    for (size_t i = 0; i < n_threads; i++)
+    for (auto& worker: workers)
     {
-        threads.push_back(std::thread(
-                [i, &workers, &workers_results_containers]
-                {
-                    workers.at(i).work(std::move(workers_results_containers.at(i)));
-                }
-                ));
+        threads.push_back(std::thread( [&]() { worker.work(); } ));
     }
-
     for (auto &thread: threads)
     {
          thread.join();
@@ -304,7 +299,7 @@ int main(int argc, char *argv[]) {
     //done and print results:
     std::cout << "DONE" << std::endl;
     std::chrono::duration<double> running_time_sec = end_time - start_time;
-    print_results(workers_results, init_LL_size, n_threads, running_time_sec);
+    print_results(workers, init_LL_size, n_threads, running_time_sec);
     return 0;
 }
 
