@@ -221,11 +221,12 @@ int init_linked_list(LinkedList<int, std::string>& LL, std::shared_ptr<TX> tx)
 
 int main(int argc, char *argv[]) {
     //parameters:
-    uint32_t n_threads = 2;
-    uint32_t n_tasks = 100;
-    uint32_t n_tasks_per_transaction = 2;
-    uint32_t x_of_100_inserts = 45;
-    uint32_t x_of_100_removes = 45;
+    uint32_t n_threads = std::stoi(argv[0]);
+    uint32_t n_tasks = std::stoi(argv[1]);
+    uint32_t n_tasks_per_transaction = std::stoi(argv[2]);
+    uint32_t x_of_100_inserts = std::stoi(argv[3]);
+    uint32_t x_of_100_removes = std::stoi(argv[4]);
+    uint32_t is_debug_version = std::stoi(argv[5]);
 
     //create random tasks:
     std::vector<Task> tasks;
@@ -240,8 +241,18 @@ int main(int argc, char *argv[]) {
     int init_LL_size = init_linked_list(linked_list, tx);
     std::cout << "linked list size:" << init_LL_size << std::endl;
 
-    //create workers:
     ResultPrinter result_printer;
+
+    if (is_debug_version) //TODO remove
+    {
+        Worker worker(tasks, 0, n_tasks, linked_list, tx, n_tasks_per_transaction, result_printer);
+        worker.work();
+
+        std::cout << "DONE" << std::endl;
+        return 0;
+    }
+
+    //create workers:
     std::vector<Worker> workers;
     for (size_t i = 0; i < n_threads; i++)
     {
