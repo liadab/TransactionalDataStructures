@@ -53,39 +53,39 @@ public:
 
     void work()
     {
-        int cntr_ops_in_transc = 0;
-        int cntr_inserts_occurred_in_tx = 0;
-        int cntr_removes_occurred_in_tx = 0;
+        int ops_in_tx = 0;
+        int inserts_occurred_in_tx = 0;
+        int removes_occurred_in_tx = 0;
 
         for (unsigned int index_task = tasks_index_begin; index_task < tasks_index_end; index_task++) {
             try {
-                if (cntr_ops_in_transc == 0)
+                if (ops_in_tx == 0)
                 {
                     tx->TXbegin();
                 }
-                cntr_ops_in_transc++;
-                commit_task_and_update_counters(index_task, cntr_inserts_occurred_in_tx, cntr_removes_occurred_in_tx);
+                ops_in_tx++;
+                commit_task_and_update_counters(index_task, inserts_occurred_in_tx, removes_occurred_in_tx);
 
-                if (cntr_ops_in_transc == ops_per_transc || index_task == tasks_index_end - 1)
+                if (ops_in_tx == ops_per_transc || index_task == tasks_index_end - 1)
                 {
                     tx->TXend<int, std::string>();
 
-                    inserts_occurred += cntr_inserts_occurred_in_tx;
-                    removes_occurred += cntr_removes_occurred_in_tx;
-                    succ_ops += cntr_ops_in_transc;
+                    inserts_occurred += inserts_occurred_in_tx;
+                    removes_occurred += removes_occurred_in_tx;
+                    succ_ops += ops_in_tx;
 
-                    cntr_ops_in_transc = 0;
-                    cntr_inserts_occurred_in_tx = 0;
-                    cntr_removes_occurred_in_tx = 0;
+                    ops_in_tx = 0;
+                    inserts_occurred_in_tx = 0;
+                    removes_occurred_in_tx = 0;
                 }
             }
             catch(TxAbortException& e)
             {
-                fail_ops += cntr_ops_in_transc;
+                fail_ops += ops_in_tx;
 
-                cntr_ops_in_transc = 0;
-                cntr_inserts_occurred_in_tx = 0;
-                cntr_removes_occurred_in_tx = 0;
+                ops_in_tx = 0;
+                inserts_occurred_in_tx = 0;
+                removes_occurred_in_tx = 0;
             }
         }
     }
@@ -112,8 +112,8 @@ private:
     int removes_occurred = 0;
 
     void commit_task_and_update_counters(int index_task,
-                                         int &cntr_inserts_occurred_in_transc,
-                                         int &cntr_removes_occurred_in_transc)
+                                         int &inserts_occurred_in_transc,
+                                         int &removes_occurred_in_transc)
     {
         Task task = tasks.at(index_task);
         switch (task.task_type)
@@ -121,13 +121,13 @@ private:
             case TaskType::INSERT:
                 if (LL.put(task.key, task.val) == NULLOPT)
                 {
-                    cntr_inserts_occurred_in_transc++;
+                    inserts_occurred_in_transc++;
                 }
                 break;
             case TaskType::REMOVE:
                 if (!(LL.remove(task.key) == NULLOPT))
                 {
-                    cntr_removes_occurred_in_transc++;
+                    removes_occurred_in_transc++;
                 }
                 break;
             case TaskType::CONTAINS:
