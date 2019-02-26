@@ -343,11 +343,12 @@ private:
     std::tuple<index_node_vec, index_node_vec> findInsertionPoints(node_t node_to_find){
         while (true) {
             bool finish;
+            auto tmp_head = m_head_top;
+            std::shared_ptr<IndexNode> curr = tmp_head;
+            int level = tmp_head->m_level;
+            auto d = curr->m_down;
             std::shared_ptr<IndexNode> prev;
             std::shared_ptr<IndexNode> next;
-            std::shared_ptr<IndexNode> curr = m_head_top;
-            auto d = curr->m_down;
-            int level = m_head_top->m_level;
             index_node_vec prevs(level + 1);
             index_node_vec nexts(level + 1);
             while (level > -1) {
