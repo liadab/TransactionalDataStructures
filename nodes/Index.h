@@ -370,7 +370,6 @@ private:
                 curr = d;
                 level--;
             }
-            assert("findInsertionPoints: reached allegedly unreachable location");
         }
     }
 
