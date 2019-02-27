@@ -115,6 +115,7 @@ public:
     bool insert_in_level(std::shared_ptr<IndexNode> new_node, std::shared_ptr<IndexNode> prev,
             std::shared_ptr<IndexNode> next, std::shared_ptr<HeadIndex> head) {
         while (true) {
+            std::cerr << "insert_in_level";
             bool finish;
             if (prev->link(next, new_node)) {
                 return true;
@@ -342,6 +343,7 @@ private:
 
     std::tuple<index_node_vec, index_node_vec> findInsertionPoints(node_t node_to_find){
         while (true) {
+            std::cerr << "findInsertionPoints";
             bool finish;
             auto tmp_head = m_head_top;
             std::shared_ptr<IndexNode> curr = tmp_head;
