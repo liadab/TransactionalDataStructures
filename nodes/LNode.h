@@ -9,6 +9,10 @@
 template <typename key_t, typename val_t>
 class LNodeWrapper;
 
+/**
+ * the basic node of the sorted linked list
+ * @tparam node_t the way we hold pointers for this list
+ */
 template <typename key_t, typename val_t>
 class LNode {
 public:

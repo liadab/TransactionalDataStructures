@@ -147,7 +147,7 @@ public:
             if (pred->isLockedOrDeleted()) {
                 continue;
             }
-            while (!next.is_null()) {
+            while (next.is_not_null()) {
                 if (next->isLockedOrDeleted()) {
                     // when we encounter a locked node while traversing the list
                     // we have to start over
