@@ -9,7 +9,7 @@
 #include "LNodeWrapper.h"
 #include "LogFileHelper.h"
 
-#define index_write_to_log_file(str) {write_to_log_file("\tIndex: " + std::string(str) + "\n");}
+#define index_write_to_log_file(str) //{write_to_log_file("\tIndex: " + std::string(str) + "\n");}
 
 template <typename key_t, typename val_t>
 class Index {

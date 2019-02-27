@@ -14,7 +14,7 @@
 //#include "nodes/utils.h"
 //#include "nodes/Index.h"
 
-#define main_write_to_log_file(str) {write_to_log_file("Main: " + std::string(str) + "\n");}
+#define main_write_to_log_file(str) //{write_to_log_file("Main: " + std::string(str) + "\n");}
 
 using thread_counters = std::tuple<int, int, int, int>;
 

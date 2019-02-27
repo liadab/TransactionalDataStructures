@@ -15,7 +15,7 @@
 //template <typename key_t, typename val_t>
 //class LocalStorage;
 
-#define LL_write_to_log_file(str) {write_to_log_file("\tLL: " + std::string(str) + "\n");}
+#define LL_write_to_log_file(str) //{write_to_log_file("\tLL: " + std::string(str) + "\n");}
 
 template <typename key_t, typename val_t>
 LNodeWrapper<key_t,val_t> safe_get_next(const LNodeWrapper<key_t,val_t>& n) {
