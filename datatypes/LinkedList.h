@@ -420,7 +420,7 @@ public:
         node_t n(std::move(key));
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
         while (true) {
-            std::cerr << "removeSingleton"
+            std::cerr << "removeSingleton";
             bool found;
             node_t pred;
             node_t next;
