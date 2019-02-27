@@ -62,7 +62,7 @@ public:
     node_t getPred(node_t n, LocalStorage<key_t, val_t>& localStorage) {
         node_t pred = index.getPred(n);
         while (true) {
-            std::cerr << "getPred";
+            write_to_log_file("LL: getPred");
             if (pred->isLocked() || pred->getVersion() > m_tx->get_local_transaction().readVersion) {
                 // abort TX
                 m_tx->get_local_transaction().TX = false;
@@ -139,7 +139,7 @@ public:
     std::tuple<bool, node_t, node_t> find_node_singelton(LocalStorage<key_t, val_t>& localStorage, node_t n) {
         auto key = n->m_key;
         while (true) {
-            std::cerr << "find_node_singelton";
+            write_to_log_file("LL: find_node_singelton");
             bool startOver = false;
             auto pred = getPredSingleton(n);
             if (pred->isLocked()) {
@@ -213,7 +213,7 @@ public:
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
         node_t n(std::move(key), std::move(val));
         while (true) {
-            std::cerr << "putSingleton";
+            write_to_log_file("LL: putSingleton");
             bool found;
             node_t pred;
             node_t next;
@@ -332,7 +332,7 @@ public:
         node_t n(std::move(key), std::move(val));
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
         while (true) {
-            std::cerr << "putIfAbsentSingleton";
+            write_to_log_file("LL: putIfAbsentSingleton");
             bool found;
             node_t next;
             node_t pred;
@@ -420,7 +420,7 @@ public:
         node_t n(std::move(key));
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
         while (true) {
-            std::cerr << "removeSingleton";
+            write_to_log_file("LL: removeSingleton");
             bool found;
             node_t pred;
             node_t next;
