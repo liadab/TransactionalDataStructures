@@ -14,6 +14,8 @@
 //#include "nodes/utils.h"
 //#include "nodes/Index.h"
 
+#define main_write_to_log_file(str) {write_to_log_file("Main: " + std::string(str) + "\n");}
+
 using thread_counters = std::tuple<int, int, int, int>;
 
 enum TaskType
@@ -61,6 +63,7 @@ public:
             try {
                 if (ops_in_tx == 0)
                 {
+                    main_write_to_log_file("txBegin");
                     tx->TXbegin();
                 }
                 ops_in_tx++;
@@ -68,6 +71,7 @@ public:
 
                 if (ops_in_tx == ops_per_transc || index_task == tasks_index_end - 1)
                 {
+                    main_write_to_log_file("txEnd");
                     tx->TXend<int, std::string>();
 
                     inserts_occurred += inserts_occurred_in_tx;
@@ -119,18 +123,21 @@ private:
         switch (task.task_type)
         {
             case TaskType::INSERT:
+                main_write_to_log_file("insert");
                 if (LL.put(task.key, task.val) == NULLOPT)
                 {
                     inserts_occurred_in_transc++;
                 }
                 break;
             case TaskType::REMOVE:
+                main_write_to_log_file("remove");
                 if (!(LL.remove(task.key) == NULLOPT))
                 {
                     removes_occurred_in_transc++;
                 }
                 break;
             case TaskType::CONTAINS:
+                main_write_to_log_file("contains");
                 LL.containsKey(task.key);
                 break;
         }
@@ -248,6 +255,8 @@ void print_results(std::vector<Worker>& workers, int linked_list_init_size, int 
 }
 
 int main(int argc, char *argv[]) {
+    restart_log_file();
+
     //parameters:
     uint32_t n_threads = std::atoi(argv[1]);
     uint32_t n_tasks = std::atoi(argv[2]);

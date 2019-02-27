@@ -15,6 +15,8 @@
 //template <typename key_t, typename val_t>
 //class LocalStorage;
 
+#define LL_write_to_log_file(str) {write_to_log_file("\tLL: " + std::string(str) + "\n");}
+
 template <typename key_t, typename val_t>
 LNodeWrapper<key_t,val_t> safe_get_next(const LNodeWrapper<key_t,val_t>& n) {
     std::atomic_thread_fence(std::memory_order_acquire);
@@ -62,7 +64,7 @@ public:
     node_t getPred(node_t n, LocalStorage<key_t, val_t>& localStorage) {
         node_t pred = index.getPred(n);
         while (true) {
-            write_to_log_file("LL: getPred");
+            LL_write_to_log_file("getPred");
             if (pred->isLocked() || pred->getVersion() > m_tx->get_local_transaction().readVersion) {
                 // abort TX
                 m_tx->get_local_transaction().TX = false;
@@ -139,7 +141,7 @@ public:
     std::tuple<bool, node_t, node_t> find_node_singelton(LocalStorage<key_t, val_t>& localStorage, node_t n) {
         auto key = n->m_key;
         while (true) {
-            write_to_log_file("LL: find_node_singelton");
+            LL_write_to_log_file("find_node_singelton");
             bool startOver = false;
             auto pred = getPredSingleton(n);
             if (pred->isLocked()) {
@@ -213,7 +215,7 @@ public:
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
         node_t n(std::move(key), std::move(val));
         while (true) {
-            write_to_log_file("LL: putSingleton");
+            LL_write_to_log_file("putSingleton");
             bool found;
             node_t pred;
             node_t next;
@@ -332,7 +334,7 @@ public:
         node_t n(std::move(key), std::move(val));
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
         while (true) {
-            write_to_log_file("LL: putIfAbsentSingleton");
+            LL_write_to_log_file("putIfAbsentSingleton");
             bool found;
             node_t next;
             node_t pred;
@@ -420,7 +422,7 @@ public:
         node_t n(std::move(key));
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
         while (true) {
-            write_to_log_file("LL: removeSingleton");
+            LL_write_to_log_file("removeSingleton");
             bool found;
             node_t pred;
             node_t next;
