@@ -67,7 +67,11 @@ private:
         bool unlink(std::shared_ptr<IndexNode> succ) { // TODO final
             if (!succ)
                 return true;
-            return m_node->m_val && casRight(succ, succ->m_right);
+            if (!(m_node->m_val)) {
+                // important so there won't be a race with anyone trying to unlink this
+                return false;
+            }
+            return casRight(succ, succ->m_right);
         }
 
     private:
@@ -306,6 +310,7 @@ private:
      * */
     std::tuple<bool, std::shared_ptr<IndexNode>, std::shared_ptr<IndexNode>> walkLevel
             (std::shared_ptr<IndexNode> start, node_t node_to_add) {
+        // TODO: change it to not return tuple
         if (!start)
             throw std::invalid_argument("NULL pointer head was given to Index::walkOnLevel");
         auto q = start;
