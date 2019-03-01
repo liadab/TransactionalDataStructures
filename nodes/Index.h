@@ -150,7 +150,7 @@ public:
         int insertion_level = 0;
         index_node_vec prevs;
         index_node_vec nexts;
-        std::tie(prevs, nexts) = findInsertionPoints(node_to_add);
+        findInsertionPoints(node_to_add, prevs, nexts);
         while (head && head->m_level <= level) {
             auto curr_level = head->m_level;
             if (!insert_in_level(idxs[curr_level], prevs[curr_level], nexts[curr_level], head)) {
@@ -253,7 +253,7 @@ private:
     node_t findPredecessor(node_t node_to_find) {
         index_node_vec prevs;
         index_node_vec nexts;
-        std::tie(prevs, nexts) = findInsertionPoints(node_to_find);
+        findInsertionPoints(node_to_find, prevs, nexts);
         return prevs[0]->m_node;
     }
 
@@ -343,9 +343,11 @@ private:
         return std::make_tuple(level, idxs);
     }
 
-    std::tuple<index_node_vec, index_node_vec> findInsertionPoints(node_t node_to_find){
+    void findInsertionPoints(node_t node_to_find, index_node_vec& prevs, index_node_vec& nexts){
         while (true) {
             index_write_to_log_file("findInsertionPoints");
+            prevs.clear();
+            nexts.clear();
             bool finish;
             auto tmp_head = m_head_top;
             std::shared_ptr<IndexNode> curr = tmp_head;
@@ -353,8 +355,8 @@ private:
             auto d = curr->m_down;
             std::shared_ptr<IndexNode> prev;
             std::shared_ptr<IndexNode> next;
-            index_node_vec prevs(level + 1);
-            index_node_vec nexts(level + 1);
+            prevs.assign(level+1, std::shared_ptr<IndexNode>());
+            nexts.assign(level+1, std::shared_ptr<IndexNode>());
             while (level > -1) {
                 if (!curr->m_node->m_val) { // maybe curr was unlinked. start the whole operation over!
                     break;
@@ -369,7 +371,7 @@ private:
                 nexts[level] = next;
                 if (!(d = prev->m_down)) { // no more levels left - we found the closest one
                     assert(!level && "finished findInsertionPoints without getting to the bottom level?");
-                    return std::make_tuple(prevs, nexts);
+                    return;
                 }
                 curr = d;
                 level--;
