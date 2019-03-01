@@ -121,10 +121,13 @@ public:
             if (prev->link(next, new_node)) {
                 return true;
             }
-            if (!new_node->m_node->m_val)
-                return false; // node is exactly being deleted, abort
+            if (!new_node->m_node->m_val) {
+                return false;
+            } // node is exactly being deleted, abort
             for (; ; ) { // continously try to insert in level
-                std::tie(finish, prev, next) = walkLevel(head, new_node->m_node);
+                prev = head;
+                next = prev->m_right;
+                finish = walkLevel(prev, next, new_node->m_node);
                 if (finish)
                     break;
             }
@@ -153,6 +156,7 @@ public:
         while (head && head->m_level <= level) {
             auto curr_level = head->m_level;
             if (!insert_in_level(idxs[curr_level], prevs[curr_level], nexts[curr_level], head)) {
+                // the node is exactly being deleted
                 return;
             }
             head = head->m_up;
@@ -303,26 +307,27 @@ private:
      * @param node_to_add node to search
      * @return a tuple: is the search was finished (or needs to restart), predecessor, predecessor's right
      * */
-    std::tuple<bool, std::shared_ptr<IndexNode>, std::shared_ptr<IndexNode>> walkLevel
-            (std::shared_ptr<IndexNode> start, node_t node_to_add) {
-        if (!start)
+    bool walkLevel(std::shared_ptr<IndexNode>& prev, std::shared_ptr<IndexNode>& next, node_t node_to_add) {
+        if (!prev)
             throw std::invalid_argument("NULL pointer head was given to Index::walkOnLevel");
-        auto q = start;
-        auto r = q->m_right;
-        while (r) {
-            node_t n = r->m_node;
+
+        next = prev->m_right;
+        while (next) {
+            node_t n = next->m_node;
             // compare before deletion check avoids needing recheck
             bool c = (node_to_add->m_key > n->m_key);
             if (!n->m_val) { // need to unlink deleted node
-                if (!q->unlink(r)) { // need to restart walk..
-                    return std::make_tuple(false, std::shared_ptr<IndexNode>(), std::shared_ptr<IndexNode>());
+                if (!prev->unlink(next)) { // need to restart walk..
+                    return false;
                 }
-            } else if (c) {
-                q = r;
-            } else break;
-            r = q->m_right;
+            } else {
+                if (c) {
+                    prev = next;
+                } else break;
+            }
+            next = prev->m_right;
         }
-        return std::make_tuple(true, q, r);
+        return true;
     }
 
     std::tuple<long unsigned int, index_node_vec> createNewIndexNode(node_t node_to_add) {
@@ -353,8 +358,7 @@ private:
             std::shared_ptr<IndexNode> curr = tmp_head;
             int level = tmp_head->m_level;
             auto d = curr->m_down;
-            std::shared_ptr<IndexNode> prev;
-            std::shared_ptr<IndexNode> next;
+            auto next = curr->m_right;
             prevs.assign(level+1, std::shared_ptr<IndexNode>());
             nexts.assign(level+1, std::shared_ptr<IndexNode>());
             while (level > -1) {
@@ -362,14 +366,14 @@ private:
                     break;
                 }
                 for (;;) {
-                    std::tie(finish, prev, next) = walkLevel(curr, node_to_find);
+                    finish = walkLevel(curr, next, node_to_find);
                     if (finish) break;
                 }
-                if (!prev->m_node->m_val) // node prev is about to be removed, restart level
+                if (!curr->m_node->m_val) // node prev is about to be removed, restart level
                     continue;
-                prevs[level] = prev;
+                prevs[level] = curr;
                 nexts[level] = next;
-                if (!(d = prev->m_down)) { // no more levels left - we found the closest one
+                if (!(d = curr->m_down)) { // no more levels left - we found the closest one
                     assert(!level && "finished findInsertionPoints without getting to the bottom level?");
                     return;
                 }
