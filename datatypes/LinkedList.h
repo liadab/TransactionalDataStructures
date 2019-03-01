@@ -15,8 +15,6 @@
 //template <typename key_t, typename val_t>
 //class LocalStorage;
 
-#define LL_write_to_log_file(str) //{write_to_log_file("\tLL: " + std::string(str) + "\n");}
-
 template <typename key_t, typename val_t>
 LNodeWrapper<key_t,val_t> safe_get_next(const LNodeWrapper<key_t,val_t>& n) {
     std::atomic_thread_fence(std::memory_order_acquire);
@@ -63,8 +61,9 @@ public:
 
     node_t getPred(node_t n, LocalStorage<key_t, val_t>& localStorage) {
         node_t pred = index.getPred(n);
+        int counter = 0;
         while (true) {
-            LL_write_to_log_file("getPred");
+            counter ++; if(counter == MAX_COUNT) { assert(false && "LL: getPred"); }
             if (pred->isLocked() || pred->getVersion() > m_tx->get_local_transaction().readVersion) {
                 // abort TX
                 m_tx->get_local_transaction().TX = false;
@@ -140,8 +139,9 @@ public:
     //find a node if found return true, pred and the node otherwise false with pred as the one that should be bfore the node
     std::tuple<bool, node_t, node_t> find_node_singelton(LocalStorage<key_t, val_t>& localStorage, node_t n) {
         auto key = n->m_key;
+        int counter = 0;
         while (true) {
-            LL_write_to_log_file("find_node_singelton");
+            counter ++; if(counter == MAX_COUNT) { assert(false && "LL: find_node_singelton"); }
             bool startOver = false;
             auto pred = getPredSingleton(n);
             if (pred->isLocked()) {
@@ -214,8 +214,9 @@ public:
     Optional<val_t> putSingleton(key_t key, val_t val) {
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
         node_t n(std::move(key), std::move(val));
+        int counter = 0;
         while (true) {
-            LL_write_to_log_file("putSingleton");
+            counter ++; if(counter == MAX_COUNT) { assert(false && "LL: putSingleton"); }
             bool found;
             node_t pred;
             node_t next;
@@ -333,8 +334,9 @@ public:
     Optional<val_t> putIfAbsentSingleton(key_t key, val_t val) {
         node_t n(std::move(key), std::move(val));
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
+        int counter = 0;
         while (true) {
-            LL_write_to_log_file("putIfAbsentSingleton");
+            counter ++; if(counter == MAX_COUNT) { assert(false && "LL: putIfAbsentSingleton"); }
             bool found;
             node_t next;
             node_t pred;
@@ -421,8 +423,9 @@ public:
     Optional<val_t> removeSingleton(key_t key) {
         node_t n(std::move(key));
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
+        int counter = 0;
         while (true) {
-            LL_write_to_log_file("removeSingleton");
+            counter ++; if(counter == MAX_COUNT) {assert(false && "LL: removeSingleton");}
             bool found;
             node_t pred;
             node_t next;

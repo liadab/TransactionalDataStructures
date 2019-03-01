@@ -9,8 +9,6 @@
 #include "LNodeWrapper.h"
 #include "LogFileHelper.h"
 
-#define index_write_to_log_file(str) //{write_to_log_file("\tIndex: " + std::string(str) + "\n");}
-
 template <typename key_t, typename val_t>
 class Index {
 public:
@@ -116,8 +114,9 @@ public:
 
     bool insert_in_level(std::shared_ptr<IndexNode> new_node, std::shared_ptr<IndexNode> prev,
             std::shared_ptr<IndexNode> next, std::shared_ptr<HeadIndex> head) {
+        int counter = 0;
         while (true) {
-            index_write_to_log_file("insert_in_level");
+            counter ++; if(counter == MAX_COUNT) { assert(false && "INDEX: insert_in_level"); }
             bool finish;
             if (prev->link(next, new_node)) {
                 return true;
@@ -344,8 +343,9 @@ private:
     }
 
     void findInsertionPoints(node_t node_to_find, index_node_vec& prevs, index_node_vec& nexts){
+        int counter = 0;
         while (true) {
-            index_write_to_log_file("findInsertionPoints");
+            counter ++; if(counter == MAX_COUNT) { assert(false && "INDEX: findInsertionPoints"); }
             prevs.clear();
             nexts.clear();
             bool finish;

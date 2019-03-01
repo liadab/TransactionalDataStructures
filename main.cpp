@@ -14,8 +14,6 @@
 //#include "nodes/utils.h"
 //#include "nodes/Index.h"
 
-#define main_write_to_log_file(str) //{write_to_log_file("Main: " + std::string(str) + "\n");}
-
 using thread_counters = std::tuple<int, int, int, int>;
 
 enum TaskType
@@ -255,7 +253,7 @@ void print_results(std::vector<Worker>& workers, int linked_list_init_size, int 
 }
 
 int main(int argc, char *argv[]) {
-    restart_log_file();
+//    restart_log_file();
 
     //parameters:
     uint32_t n_threads = std::atoi(argv[1]);
@@ -275,7 +273,7 @@ int main(int argc, char *argv[]) {
 
     //init linked list:
     int init_LL_size = init_linked_list(linked_list, tx);
-    std::cout << "linked list size:" << init_LL_size << std::endl;
+    std::cout << "initial linked list size:" << init_LL_size << std::endl;
 
     //create workers:
     std::vector<Worker> workers;
