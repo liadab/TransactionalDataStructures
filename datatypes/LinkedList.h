@@ -1,6 +1,5 @@
 #pragma once
 
-
 #include <memory>
 
 #include "../nodes/LNode.h"
@@ -10,10 +9,7 @@
 #include "../WriteElement.h"
 #include "dummyIndex.h"
 #include "../TX.h"
-
-//pre decle Local storge
-//template <typename key_t, typename val_t>
-//class LocalStorage;
+#include "../nodes/record_mgr.h"
 
 template <typename key_t, typename val_t>
 LNodeWrapper<key_t,val_t> safe_get_next(const LNodeWrapper<key_t,val_t>& n) {
@@ -22,6 +18,7 @@ LNodeWrapper<key_t,val_t> safe_get_next(const LNodeWrapper<key_t,val_t>& n) {
     std::atomic_thread_fence(std::memory_order_release);
     return next;
 }
+
 
 template <typename key_t, typename val_t>
 class LinkedList {
@@ -33,9 +30,9 @@ public:
     node_t head;
     index_t index;
 
-    explicit LinkedList(std::shared_ptr<TX> tx) :
+    LinkedList(std::shared_ptr<TX> tx, const RecordMgr<key_t, val_t>& recordMgr) :
         m_tx(std::move(tx)),
-        head(std::numeric_limits<key_t>::min(), val_t{}),
+        head(recordMgr.get_new_node(std::numeric_limits<key_t>::min(), val_t{})),
         index(head)
     { }
 
@@ -61,9 +58,7 @@ public:
 
     node_t getPred(node_t n, LocalStorage<key_t, val_t>& localStorage) {
         node_t pred = index.getPred(n);
-        int counter = 0;
         while (true) {
-            counter ++; if(counter == MAX_COUNT) { assert(false && "LL: getPred"); }
             if (pred->isLocked() || pred->getVersion() > m_tx->get_local_transaction().readVersion) {
                 // abort TX
                 m_tx->get_local_transaction().TX = false;
@@ -139,9 +134,7 @@ public:
     //find a node if found return true, pred and the node otherwise false with pred as the one that should be bfore the node
     std::tuple<bool, node_t, node_t> find_node_singelton(LocalStorage<key_t, val_t>& localStorage, node_t n) {
         auto key = n->m_key;
-        int counter = 0;
         while (true) {
-            counter ++; if(counter == MAX_COUNT) { assert(false && "LL: find_node_singelton"); }
             bool startOver = false;
             auto pred = getPredSingleton(n);
             if (pred->isLocked()) {
@@ -211,12 +204,11 @@ public:
         return std::make_tuple(false, pred, next);
     }
 
-    Optional<val_t> putSingleton(key_t key, val_t val) {
+    Optional<val_t> putSingleton(key_t key, val_t val, const RecordMgr<key_t, val_t>& recordMgr) {
+        auto guard = recordMgr.getGuard();
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
-        node_t n(std::move(key), std::move(val));
-        int counter = 0;
+        auto n = recordMgr.get_new_node(std::move(key), std::move(val));
         while (true) {
-            counter ++; if(counter == MAX_COUNT) { assert(false && "LL: putSingleton"); }
             bool found;
             node_t pred;
             node_t next;
@@ -280,18 +272,16 @@ public:
     // mapping for key. (A null return can also indicate that the map previously
     // associated null with key, if the implementation supports null values.)
     // @throws NullPointerException if the specified key or value is null
-    Optional<val_t> put(key_t key, val_t val) {
+    Optional<val_t> put(key_t key, val_t val, const RecordMgr<key_t, val_t>& recordMgr) {
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
-
         // SINGLETON
         if (!m_tx->get_local_transaction().TX) {
-            return putSingleton(key, val);
+            return putSingleton(key, val, recordMgr);
         }
-
         // TX
-
+        auto guard = recordMgr.getGuard();
+        auto n = recordMgr.get_new_node(std::move(key), std::move(val));
         m_tx->get_local_transaction().readOnly = false;
-        node_t n(std::move(key), std::move(val));
         bool found;
         node_t next;
         node_t pred;
@@ -331,12 +321,11 @@ public:
         return NULLOPT;
     }
 
-    Optional<val_t> putIfAbsentSingleton(key_t key, val_t val) {
-        node_t n(std::move(key), std::move(val));
+    Optional<val_t> putIfAbsentSingleton(key_t key, val_t val, const RecordMgr<key_t, val_t>& recordMgr) {
+        auto guard = recordMgr.getGuard();
+        auto n = recordMgr.get_new_node(std::move(key), std::move(val));
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
-        int counter = 0;
         while (true) {
-            counter ++; if(counter == MAX_COUNT) { assert(false && "LL: putIfAbsentSingleton"); }
             bool found;
             node_t next;
             node_t pred;
@@ -390,17 +379,18 @@ public:
     // (A null return can also indicate that the map previously associated
     // null with the key, if the implementation supports null values.)
     // @throws NullPointerException if the specified key or value is null
-    Optional<val_t> putIfAbsent(key_t key, val_t val) {
+    Optional<val_t> putIfAbsent(key_t key, val_t val, const RecordMgr<key_t, val_t>& recordMgr) {
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
 
         // SINGLETON
         if (!m_tx->get_local_transaction().TX) {
-            return putIfAbsentSingleton(key, val);
+            return putIfAbsentSingleton(key, val, recordMgr);
         }
 
         // TX
         m_tx->get_local_transaction().readOnly = false;
-        node_t n(std::move(key), std::move(val));
+        auto guard = recordMgr.getGuard();
+        auto n = recordMgr.get_new_node(std::move(key), std::move(val));
         bool found;
         node_t pred;
         node_t next;
@@ -420,12 +410,11 @@ public:
         return NULLOPT;
     }
 
-    Optional<val_t> removeSingleton(key_t key) {
-        node_t n(std::move(key));
+    Optional<val_t> removeSingleton(key_t key, const RecordMgr<key_t, val_t>& recordMgr) {
+        auto guard = recordMgr.getGuard();
+        auto n = recordMgr.get_new_node(std::move(key));
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
-        int counter = 0;
         while (true) {
-            counter ++; if(counter == MAX_COUNT) {assert(false && "LL: removeSingleton");}
             bool found;
             node_t pred;
             node_t next;
@@ -481,17 +470,18 @@ public:
     // Returns the value to which this map previously associated the key,
     // or null if the map contained no mapping for the key.
     // @throws NullPointerException if the specified key is null
-    Optional<val_t> remove(key_t key) {
+    Optional<val_t> remove(key_t key, const RecordMgr<key_t, val_t>& recordMgr) {
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
         // SINGLETON
         if (!m_tx->get_local_transaction().TX) {
-            return removeSingleton(key);
+            return removeSingleton(key, recordMgr);
         }
 
         // TX
 
         m_tx->get_local_transaction().readOnly = false;
-        node_t n(std::move(key));
+        auto guard = recordMgr.getGuard();
+        auto n = recordMgr.get_new_node(std::move(key));
         bool found;
         node_t next;
         node_t pred;
@@ -517,35 +507,14 @@ public:
         return NULLOPT;
     }
 
-    bool containsKeySingleton(key_t key) {
-        node_t n(std::move(key));
-        auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
-        //TODO maybe only get pred is more efficent
-        bool found;
-        node_t next;
-        node_t pred;
-        std::tie(found, pred, next) = find_node_singelton(localStorage, n);
-        return found;
+    bool containsKey(key_t key, const RecordMgr<key_t, val_t>& recordMgr) {
+        return static_cast<bool>(get(std::move(key), recordMgr));
     }
 
-    bool containsKey(key_t key) {
+    Optional<val_t> getSingleton(key_t key, const RecordMgr<key_t, val_t>& recordMgr) {
+        auto guard = recordMgr.getGuard();
+        auto n = recordMgr.get_new_node(std::move(key));
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
-        // SINGLETON
-        if (!m_tx->get_local_transaction().TX) {
-            return containsKeySingleton(key);
-        }
-        // TX
-        node_t n(std::move(key));
-        bool found;
-        node_t next;
-        node_t pred;
-        std::tie(found, pred, next) =find_node(localStorage, n);
-        return found;
-    }
-
-    Optional<val_t> getSingleton(key_t key) {
-        auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
-        node_t n(std::move(key));
         //TODO maybe only get pred is more efficent
         bool found;
         node_t next;
@@ -557,15 +526,16 @@ public:
         return NULLOPT;
     }
 
-    Optional<val_t> get(key_t key) {
+    Optional<val_t> get(key_t key, const RecordMgr<key_t, val_t>& recordMgr) {
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
         // SINGLETON
         if (!m_tx->get_local_transaction().TX) {
-            return getSingleton(key);
+            return getSingleton(key, recordMgr);
         }
 
         // TX
-        node_t n(std::move(key));
+        auto guard = recordMgr.getGuard();
+        auto n = recordMgr.get_new_node(std::move(key));
         bool found;
         node_t pred;
         node_t next;

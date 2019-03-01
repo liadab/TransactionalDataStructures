@@ -22,6 +22,9 @@ public:
     Optional<val_t> m_val;
     node_t m_next;
 
+    //for debra we need the node to be defult ctr
+    LNode() : m_key(key_t{}), m_version_mask(0) { }
+
     explicit LNode(key_t key) : m_key(std::move(key)), m_version_mask(0) {}
 
     bool tryLock() {

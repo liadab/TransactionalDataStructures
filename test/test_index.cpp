@@ -1,13 +1,16 @@
 #include <gtest/gtest.h>
 #include "../nodes/Index.h"
+#include "../nodes/record_mgr.h"
 
 TEST(IndexBasic, putAndRemoveMulti) {
     using node_t = LNodeWrapper<size_t,size_t>;
-    node_t n(std::numeric_limits<size_t>::min(), std::numeric_limits<size_t>::min());
+    auto global_record_mgr = RecordMgr<size_t, size_t>::make_record_mgr(1);
+    RecordMgr<size_t, size_t> record_mgr(global_record_mgr, 0);
+    auto n = record_mgr.get_new_node(std::numeric_limits<size_t>::min(), std::numeric_limits<size_t>::min());
     Index<size_t, size_t> ind(n);
     std::vector<node_t> nodes(32);
     for (size_t i = 0; i < 32; i++) {
-        node_t n(i+1,  i+1);
+        auto n = record_mgr.get_new_node(i+1,  i+1);
         nodes[i] = n;
         ind.add(n);
     }

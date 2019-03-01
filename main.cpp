@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <ctime>
 #include <chrono>
+#include <list>
 #include "algorithm"
 
 #include "nodes/LNode.h"
@@ -42,13 +43,17 @@ public:
            const int _tasks_index_end,
            LinkedList<int, std::string>& _LL,
            std::shared_ptr<TX> _tx,
-           const int _ops_per_transc):
+           const int _ops_per_transc,
+           std::shared_ptr<RecordMgr<int, std::string>::record_manager_t> global_recordMgr,
+           size_t tid
+           ):
                    tasks(_tasks),
                    tasks_index_begin(_tasks_index_begin),
                    tasks_index_end(_tasks_index_end),
                    LL(_LL),
-                   tx(_tx),
-                   ops_per_transc(_ops_per_transc)
+                   tx(std::move(_tx)),
+                   ops_per_transc(_ops_per_transc),
+                   recordMgr(global_recordMgr, tid)
     {}
 
     void work()
@@ -70,7 +75,7 @@ public:
                 if (ops_in_tx == ops_per_transc || index_task == tasks_index_end - 1)
                 {
                     main_write_to_log_file("txEnd");
-                    tx->TXend<int, std::string>();
+                    tx->TXend<int, std::string>(recordMgr);
 
                     inserts_occurred += inserts_occurred_in_tx;
                     removes_occurred += removes_occurred_in_tx;
@@ -107,6 +112,7 @@ private:
     LinkedList<int, std::string>& LL;
     std::shared_ptr<TX> tx;
     const int ops_per_transc;
+    RecordMgr<int, std::string> recordMgr;
 
     int succ_ops = 0;
     int fail_ops = 0;
@@ -122,21 +128,21 @@ private:
         {
             case TaskType::INSERT:
                 main_write_to_log_file("insert");
-                if (LL.put(task.key, task.val) == NULLOPT)
+                if (LL.put(task.key, task.val, recordMgr) == NULLOPT)
                 {
                     inserts_occurred_in_transc++;
                 }
                 break;
             case TaskType::REMOVE:
                 main_write_to_log_file("remove");
-                if (!(LL.remove(task.key) == NULLOPT))
+                if (!(LL.remove(task.key, recordMgr) == NULLOPT))
                 {
                     removes_occurred_in_transc++;
                 }
                 break;
             case TaskType::CONTAINS:
                 main_write_to_log_file("contains");
-                LL.containsKey(task.key);
+                LL.containsKey(task.key, recordMgr);
                 break;
         }
     }
@@ -202,37 +208,36 @@ void print_tasks_vector(const std::vector<Task> tasks)
     }
 }
 
-int init_linked_list(LinkedList<int, std::string>& LL, std::shared_ptr<TX> tx)
+int init_linked_list(LinkedList<int, std::string>& LL, std::shared_ptr<TX> tx, const RecordMgr<int, std::string>& recordMgr)
 {
     tx->TXbegin(); //we use tx here to avoid singleton operation
     int init_LL_size = 0;
     for (int i = 0; i < N_INIT_LIST; i++)
     {
         Task task = get_random_task(INSERT);
-        if (LL.put(task.key, task.val) == NULLOPT)
+        if (LL.put(task.key, task.val, recordMgr) == NULLOPT)
         {
             init_LL_size++;
         }
     }
-    tx->TXend<int, std::string>();
+    tx->TXend<int, std::string>(recordMgr);
     return init_LL_size;
 }
 
-void print_results(std::vector<Worker>& workers, int linked_list_init_size, int n_threads,
+void print_results(std::list<Worker>& workers, int linked_list_init_size, int n_threads,
                    std::chrono::duration<double>& running_time_sec)
 {
     int total_linked_list_size = linked_list_init_size;
     int total_ops_succeed = 0;
     int total_ops_failed = 0;
+    size_t count = 0;
+    for (const auto &worker : workers) {
+        int inserts_occurred = worker.getInserts_occurred();
+        int removes_occurred = worker.getRemoves_occurred();
+        int succ_ops = worker.getSucc_ops();
+        int fail_ops = worker.getFail_ops();
 
-    for (int i = 0; i < n_threads; i++)
-    {
-        int inserts_occurred = workers.at(i).getInserts_occurred();
-        int removes_occurred = workers.at(i).getRemoves_occurred();
-        int succ_ops = workers.at(i).getSucc_ops();
-        int fail_ops = workers.at(i).getFail_ops();
-
-        std::cout << "\nThread " << i << std::endl;
+        std::cout << "\nThread " << ++count << std::endl;
         std::cout << "inserts occurred:" << inserts_occurred << std::endl;
         std::cout << "removes occurred:" << removes_occurred << std::endl;
         std::cout << "succ ops:" << succ_ops << std::endl;
@@ -262,6 +267,8 @@ int main(int argc, char *argv[]) {
     uint32_t x_of_100_inserts = std::atoi(argv[4]);
     uint32_t x_of_100_removes = std::atoi(argv[5]);
 
+    auto global_record_mgr = RecordMgr<int, std::string>::make_record_mgr(n_threads + 1);
+
     //create random tasks:
     std::vector<Task> tasks;
     fill_tasks_vector(tasks, n_tasks, x_of_100_inserts, x_of_100_removes);
@@ -269,21 +276,22 @@ int main(int argc, char *argv[]) {
 
     //create linked list:
     std::shared_ptr<TX> tx = std::make_shared<TX>();
-    LinkedList<int, std::string> linked_list(tx);
+    RecordMgr<int, std::string> record_mgr(global_record_mgr, 0);
+    LinkedList<int, std::string> linked_list(tx, record_mgr);
 
     //init linked list:
-    int init_LL_size = init_linked_list(linked_list, tx);
+    int init_LL_size = init_linked_list(linked_list, tx, record_mgr);
     std::cout << "initial linked list size:" << init_LL_size << std::endl;
 
     //create workers:
-    std::vector<Worker> workers;
+    std::list<Worker> workers;
 
     for (size_t i = 0; i < n_threads; i++)
     {
         int index_begin = i * n_tasks / n_threads;
         int index_end = (i + 1) * n_tasks / n_threads;
 
-        workers.push_back(Worker(tasks, index_begin, index_end, linked_list, tx, n_tasks_per_transaction));
+        workers.emplace_back(tasks, index_begin, index_end, linked_list, tx, n_tasks_per_transaction, global_record_mgr, i + 1);
     }
 
     //measure time start:

@@ -2,6 +2,8 @@
 
 #include <atomic>
 #include "LocalTransaction.h"
+#include "nodes/record_mgr.h"
+
 class TxAbortException : public std::exception
 {
     const char * what () const throw ()
@@ -51,7 +53,8 @@ public:
     }
 
     template <typename key_t, typename val_t>
-    bool TXend() {
+    bool TXend(const RecordMgr<key_t, val_t>& recordMgr) {
+        auto guard = recordMgr.getGuard();
         using node_t = LNodeWrapper<key_t,val_t>;
 
         if (DEBUG_MODE_TX) {
