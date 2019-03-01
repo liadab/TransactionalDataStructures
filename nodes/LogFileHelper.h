@@ -6,9 +6,9 @@
 #include <fstream>
 #include <sstream>
 
-#define main_write_to_log_file(str) {write_to_log_file("MAIN: " + std::string(str) + "\n");}
-#define linked_list_write_to_log_file(str) {write_to_log_file("\tLNKD_LST: " + std::string(str) + "\n");}
-#define index_write_to_log_file(str) {write_to_log_file("\tINDEX:    " + std::string(str) + "\n");}
+#define main_write_to_log_file(str) //{write_to_log_file("MAIN: " + std::string(str) + "\n");}
+#define linked_list_write_to_log_file(str) //{write_to_log_file("\tLNKD_LST: " + std::string(str) + "\n");}
+#define index_write_to_log_file(str) //{write_to_log_file("\tINDEX:    " + std::string(str) + "\n");}
 
 template <class WriteObj>
 static void write_to_log_file(const WriteObj& write_obj)
@@ -23,7 +23,10 @@ static void write_to_log_file(const WriteObj& write_obj)
 
 static void restart_log_file()
 {
-    system("rm -r ./logs/*");
+    try {
+        system("rm -r ./logs/*");
+    }
+    catch (OptionalException){}
 }
 
 #endif //TRANSACTIONALDATASTRUCTURES_LOGFILEHELPER_H

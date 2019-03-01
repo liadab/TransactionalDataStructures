@@ -273,7 +273,7 @@ int main(int argc, char *argv[]) {
 
     //init linked list:
     int init_LL_size = init_linked_list(linked_list, tx);
-    std::cout << "linked list size:" << init_LL_size << std::endl;
+    std::cout << "initial linked list size:" << init_LL_size << std::endl;
 
     //create workers:
     std::vector<Worker> workers;
