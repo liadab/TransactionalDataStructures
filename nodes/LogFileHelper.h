@@ -6,9 +6,12 @@
 #include <fstream>
 #include <sstream>
 
-#define main_write_to_log_file(str) {write_to_log_file("MAIN: " + std::string(str) + "\n");}
-#define linked_list_write_to_log_file(str) {write_to_log_file("\tLNKD_LST: " + std::string(str) + "\n");}
-#define index_write_to_log_file(str) {write_to_log_file("\tINDEX:    " + std::string(str) + "\n");}
+#define main_write_to_log_file(str) //{write_to_log_file("MAIN: " + std::string(str) + "\n");}
+//#define linked_list_write_to_log_file(str) //{write_to_log_file("\tLNKD_LST: " + std::string(str) + "\n");}
+//#define index_write_to_log_file(str) //{write_to_log_file("\tINDEX:    " + std::string(str) + "\n");}
+
+#define MAX_COUNT 100
+
 
 template <class WriteObj>
 static void write_to_log_file(const WriteObj& write_obj)

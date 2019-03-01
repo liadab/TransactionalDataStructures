@@ -253,7 +253,7 @@ void print_results(std::vector<Worker>& workers, int linked_list_init_size, int 
 }
 
 int main(int argc, char *argv[]) {
-    restart_log_file();
+//    restart_log_file();
 
     //parameters:
     uint32_t n_threads = std::atoi(argv[1]);
