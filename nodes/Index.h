@@ -143,9 +143,8 @@ public:
         if (node_to_add.is_null())
             throw std::invalid_argument("NULL pointer node was given to Index::add");
 
-        long unsigned int level;
         index_node_vec idxs;
-        std::tie(level, idxs) = createNewIndexNode(node_to_add);
+        auto level = createNewIndexNode(node_to_add, idxs);
 
         // find insertion points in the existing levels - from bottom up
         auto head = m_head_bottom;
@@ -330,7 +329,7 @@ private:
         return true;
     }
 
-    std::tuple<long unsigned int, index_node_vec> createNewIndexNode(node_t node_to_add) {
+    long unsigned int createNewIndexNode(node_t node_to_add, index_node_vec& idxs) {
         int rnd = get_random_in_range(2, (1 << 30) - 1);
         long unsigned int level = 0;
         while (((rnd >>= 1) & 1) != 0)
@@ -338,13 +337,13 @@ private:
         long unsigned int old_level = m_head_top->m_level;
         level = std::min(level, old_level + 1); // always try to grow by at most one level
         std::shared_ptr<IndexNode> idx = NULL;
-        index_node_vec idxs(level + 1);
 
         // create the new nodes
         for (int i = 0; i < level + 1; ++i) {
-            idxs[i] = idx = std::make_shared<IndexNode>(node_to_add, idx, std::shared_ptr<IndexNode>());
+            idx = std::make_shared<IndexNode>(node_to_add, idx, std::shared_ptr<IndexNode>());
+            idxs.push_back(idx);
         }
-        return std::make_tuple(level, idxs);
+        return level;
     }
 
     void findInsertionPoints(node_t node_to_find, index_node_vec& prevs, index_node_vec& nexts){
