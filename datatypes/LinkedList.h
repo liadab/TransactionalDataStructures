@@ -63,7 +63,7 @@ public:
         node_t pred = index.getPred(n);
         int counter = 0;
         while (true) {
-            counter ++; if(counter == MAX_COUNT) {std::cout << "LL: getPred" << std::endl; exit(1);}
+            counter ++; if(counter == MAX_COUNT) { assert(false && "LL: getPred"); }
             if (pred->isLocked() || pred->getVersion() > m_tx->get_local_transaction().readVersion) {
                 // abort TX
                 m_tx->get_local_transaction().TX = false;
@@ -141,7 +141,7 @@ public:
         auto key = n->m_key;
         int counter = 0;
         while (true) {
-            counter ++; if(counter == MAX_COUNT) {std::cout << "LL: find_node_singelton" << std::endl; exit(1);}
+            counter ++; if(counter == MAX_COUNT) { assert(false && "LL: find_node_singelton"); }
             bool startOver = false;
             auto pred = getPredSingleton(n);
             if (pred->isLocked()) {
@@ -216,7 +216,7 @@ public:
         node_t n(std::move(key), std::move(val));
         int counter = 0;
         while (true) {
-            counter ++; if(counter == MAX_COUNT) {std::cout << "LL: putSingleton" << std::endl; exit(1);}
+            counter ++; if(counter == MAX_COUNT) { assert(false && "LL: putSingleton"); }
             bool found;
             node_t pred;
             node_t next;
@@ -336,7 +336,7 @@ public:
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
         int counter = 0;
         while (true) {
-            counter ++; if(counter == MAX_COUNT) {std::cout << "LL: putIfAbsentSingleton" << std::endl; exit(1);}
+            counter ++; if(counter == MAX_COUNT) { assert(false && "LL: putIfAbsentSingleton"); }
             bool found;
             node_t next;
             node_t pred;
@@ -425,7 +425,7 @@ public:
         auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
         int counter = 0;
         while (true) {
-            counter ++; if(counter == MAX_COUNT) {std::cout << "LL: removeSingleton" << std::endl; exit(1);}
+            counter ++; if(counter == MAX_COUNT) {assert(false && "LL: removeSingleton");}
             bool found;
             node_t pred;
             node_t next;
