@@ -57,9 +57,10 @@ public:
     using record_manager_t = record_manager<reclaimer_debra<key_t>, allocator_new<key_t>, pool_none<key_t>, node_t>;
 
     static std::shared_ptr<record_manager_t> make_record_mgr(size_t max_threads) {
-        return std::make_shared<record_manager_t>(0);
+        return std::shared_ptr<record_manager_t>{};
     }
-    RecordMgr(std::shared_ptr<record_manager_t> myRecManager, int tid) : myRecManager(myRecManager), tid(tid) {
+
+    RecordMgr(std::shared_ptr<record_manager_t> myRecManager, int tid) {
     }
 
     ~RecordMgr() {
