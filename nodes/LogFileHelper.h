@@ -4,22 +4,26 @@
 #define TRANSACTIONALDATASTRUCTURES_LOGFILEHELPER_H
 
 #include <fstream>
-static const char* LOG_FILE_PATH = "log_file.txt";
-static std::mutex log_write;
+#include <sstream>
+
+#define main_write_to_log_file(str) {write_to_log_file("Main: " + std::string(str) + "\n");}
+#define linked_list_write_to_log_file(str) {write_to_log_file("\tlinked list: " + std::string(str) + "\n");}
+#define index_write_to_log_file(str) {write_to_log_file("\tindex: " + std::string(str) + "\n");}
 
 template <class WriteObj>
 static void write_to_log_file(const WriteObj& write_obj)
 {
-    std::lock_guard<std::mutex> l(log_write);
-    std::ofstream log_file(LOG_FILE_PATH, std::ios_base::out | std::ios_base::app );
+    std::thread::id thread_id = std::this_thread::get_id();
+    std::stringstream file_name;
+    file_name << "logs/log_file_" << thread_id << ".txt";
+
+    std::ofstream log_file(file_name.str(), std::ios_base::out | std::ios_base::app );
     log_file << write_obj;
 }
 
 static void restart_log_file()
 {
-    std::ofstream ofs;
-    ofs.open(LOG_FILE_PATH, std::ofstream::out | std::ofstream::trunc);
-    ofs.close();
+    system("rm -r logs/*");
 }
 
 #endif //TRANSACTIONALDATASTRUCTURES_LOGFILEHELPER_H
