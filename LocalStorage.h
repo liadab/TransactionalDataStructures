@@ -7,17 +7,32 @@
 
 #include "nodes/LNode.h"
 #include "WriteElement.h"
+#include "datatypes/LocalQueue.h"
 
 template <typename key_t, typename val_t>
 class LinkedList;
+
+template <typename val_t>
+class Queue;
+
+namespace std {
+    template <typename val_t>
+    struct hash<Queue<val_t>>
+    {
+        std::size_t operator()(const Queue<val_t>& q) const
+        {
+            return q.hash();
+        }
+    };
+}
 
 template <typename key_t, typename val_t>
 class LocalStorage {
 public:
     using node_t = LNodeWrapper<key_t,val_t>;
 
-    //TODO add when queue is implmentd
-    //std::map<Queue, LocalQueue> queueMap = new HashMap<Queue, LocalQueue>();
+    //TODO add when queue is implmented
+    std::unordered_map<Queue<val_t>*, LocalQueue<val_t>> queueMap;
     std::unordered_map<node_t, WriteElement<key_t, val_t>> writeSet;
     std::unordered_set<node_t> readSet;
     std::unordered_map<LinkedList<key_t, val_t>*, std::vector<node_t>> indexAdd;

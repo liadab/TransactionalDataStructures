@@ -15,6 +15,16 @@ public:
 
     }
 
+    bool operator==(const QNode<val_t>& other) const {
+        return std::tie(m_val, m_prev.get(), m_next.get()) ==
+            std::tie(other.m_val, other.m_prev.get(), other.m_next.get());
+    }
+
+    bool operator!=(const QNode<val_t>& other) const {
+        return std::tie(m_val, m_prev.get(), m_next.get()) !=
+            std::tie(other.m_val, other.m_prev.get(), other.m_next.get());
+    }
+
 private:
     std::shared_ptr<QNode<val_t>> m_prev;
     std::shared_ptr<QNode<val_t>> m_next;
