@@ -377,8 +377,9 @@ private:
             auto d = curr->m_down;
             std::shared_ptr<IndexNode> prev;
             std::shared_ptr<IndexNode> next;
-            prevs.assign(level+1, std::shared_ptr<IndexNode>());
-            nexts.assign(level+1, std::shared_ptr<IndexNode>());
+
+            prevs.resize(level + 1);
+            nexts.resize(level + 1);
             while (level > -1) {
                 if (curr->m_node.is_deleted() || !curr->m_node->m_val) { // maybe curr was unlinked. start the whole operation over!
                     break;
