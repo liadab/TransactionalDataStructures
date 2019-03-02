@@ -580,6 +580,17 @@ public:
         }
         return res;
     }
+
+    uint64_t get_size()
+    {
+        auto cur = head;
+        uint64_t res = 0;
+        while(!cur.is_null()) {
+            res ++;
+            cur = cur->m_next;
+        }
+        return res;
+    }
 };
 
 
