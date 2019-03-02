@@ -570,6 +570,16 @@ public:
         }
         return stream;
     }
+
+    key_t get_sum_key(const RecordMgr<key_t, val_t>& recordMgr) {
+        auto cur = head;
+        key_t res = 0;
+        while(!cur.is_null()) {
+            res += cur->m_key;
+            cur = cur->m_next;
+        }
+        return res;
+    }
 };
 
 
