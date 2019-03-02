@@ -24,8 +24,14 @@ public:
     }
 
     ~Index() {
-        m_head_top = std::shared_ptr<IndexNode>();
-        m_head_bottom = std::shared_ptr<IndexNode>();
+        m_head_top->m_down = std::shared_ptr<IndexNode>();
+        m_head_top->m_up = std::shared_ptr<IndexNode>();
+        m_head_top->m_right = std::shared_ptr<IndexNode>();
+
+        m_head_bottom->m_down = std::shared_ptr<IndexNode>();
+        m_head_bottom->m_up = std::shared_ptr<IndexNode>();
+        m_head_bottom->m_right = std::shared_ptr<IndexNode>();
+
     }
 
 private:
