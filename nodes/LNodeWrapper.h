@@ -12,14 +12,16 @@
 template <typename key_t, typename val_t>
 class LNodeWrapper {
 public:
-    LNodeWrapper() : m_node(NULL) {}
+    LNodeWrapper() : m_node(NULL), deleted(false) {}
 
     explicit LNodeWrapper(key_t key) {
         m_node = new LNode<key_t, val_t>(key);
+        deleted = false;
     }
 
     LNodeWrapper(key_t key, val_t val) : LNodeWrapper(std::move(key)){
         m_node->m_val = std::move(val);
+        deleted = false;
     }
 
     bool operator==(const LNodeWrapper<key_t, val_t>& other) const {
@@ -38,6 +40,13 @@ public:
         return m_node != NULL;
     }
 
+    bool is_deleted() {
+        return deleted;
+    }
+
+    void delete_wrapped_node() {
+        deleted = true;
+    }
 
     LNode<key_t, val_t>* operator->() {
         return m_node;
@@ -70,7 +79,7 @@ public:
 
 private:
     LNode<key_t, val_t>* m_node;
-
+    bool deleted;
 };
 
 namespace std {
@@ -95,11 +104,11 @@ namespace std {
 template <typename key_t, typename val_t>
 class LNodeWrapper {
 public:
-    LNodeWrapper() : m_node(NULL) {}
+    LNodeWrapper() : m_node(NULL) , deleted(false) {}
 
-    LNodeWrapper(LNode<key_t, val_t>* node) : m_node(node) {}
+    LNodeWrapper(LNode<key_t, val_t>* node) : m_node(node) , deleted(false) {}
 
-    LNodeWrapper(const LNodeWrapper<key_t, val_t>& other) : m_node(other.m_node) {}
+    LNodeWrapper(const LNodeWrapper<key_t, val_t>& other) : m_node(other.m_node) , deleted(false) {}
 
     bool operator==(const LNodeWrapper<key_t, val_t>& other) const {
         return m_node == other.m_node;
@@ -117,6 +126,13 @@ public:
         return m_node != NULL;
     }
 
+    bool is_deleted() {
+        return deleted;
+    }
+
+    void delete_wrapped_node() {
+        deleted = true;
+    }
 
     LNode<key_t, val_t>* operator->() {
         return m_node;
@@ -149,7 +165,7 @@ public:
 
 private:
     LNode<key_t, val_t>* m_node;
-
+    bool deleted;
 };
 
 namespace std {
@@ -175,10 +191,13 @@ namespace std {
 template <typename key_t, typename val_t>
 class LNodeWrapper {
 public:
-    LNodeWrapper() = default;
+    LNodeWrapper() {
+        deleted = false;
+    };
 
     explicit LNodeWrapper(key_t key) {
         m_node = std::make_shared<LNode<key_t, val_t>>(std::move(key));
+        deleted = false;
     }
 
     LNodeWrapper(key_t key, val_t val) : LNodeWrapper(std::move(key)){
@@ -201,6 +220,13 @@ public:
         return static_cast<bool>(m_node);
     }
 
+    bool is_deleted() {
+        return deleted;
+    }
+
+    void delete_wrapped_node() {
+        deleted = true;
+    }
 
     LNode<key_t, val_t>* operator->() {
         return m_node.get();
@@ -233,7 +259,7 @@ public:
 
 private:
     std::shared_ptr<LNode<key_t, val_t>> m_node;
-
+    bool deleted;
 };
 
 namespace std {
