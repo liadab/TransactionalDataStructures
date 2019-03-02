@@ -45,7 +45,7 @@ public:
     }
 
     void delete_wrapped_node() {
-        *deleted = true;
+        *deleted = false;
     }
 
     LNode<key_t, val_t>* operator->() {
@@ -227,7 +227,7 @@ public:
     }
 
     void delete_wrapped_node() {
-        *deleted = true;
+        *deleted = false;
     }
 
     LNode<key_t, val_t>* operator->() {
