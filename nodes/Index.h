@@ -7,7 +7,6 @@
 #include "utils.h"
 #include "LNode.h"
 #include "LNodeWrapper.h"
-#include "LogFileHelper.h"
 
 template <typename key_t, typename val_t>
 class Index {
@@ -122,9 +121,7 @@ public:
 
     bool insert_in_level(std::shared_ptr<IndexNode> new_node, std::shared_ptr<IndexNode> prev,
             std::shared_ptr<IndexNode> next, std::shared_ptr<HeadIndex> head) {
-        int counter = 0;
         while (true) {
-            counter ++; if(counter == MAX_COUNT) { assert(false && "INDEX: insert_in_level"); }
             bool finish;
             if (prev->link(next, new_node)) {
                 return true;
@@ -132,9 +129,7 @@ public:
             if (new_node->m_node.is_deleted() || new_node->m_node->m_val) {
                 return false;
             } // node is exactly being deleted, abort
-            int counter1 = 0;
             for (; ; ) { // continously try to insert in level
-                counter1 ++; if(counter1 == MAX_COUNT) { assert(false && "INDEX: insert_in_level_inner"); }
                 std::tie(finish, prev, next) = walkLevel(head, new_node->m_node);
                 if (finish)
                     break;
@@ -213,9 +208,7 @@ public:
         if (node.is_null()) {
             throw std::invalid_argument("NULL pointer node was given to Index::getPred");
         }
-        int counter1 = 0;
         for (; ; ) {
-            counter1 ++; if(counter1 == MAX_COUNT) { assert(false && "INDEX: getPred_inner"); }
             node_t b = findPredecessor(node);
             if (!b.is_deleted() && b->m_val) { // not deleted
                 return b;
@@ -365,9 +358,7 @@ private:
     }
 
     bool findInsertionPoints(node_t node_to_find, index_node_vec& prevs, index_node_vec& nexts){
-        int counter = 0;
         while (true) {
-            counter ++; if(counter == MAX_COUNT) { assert(false && "INDEX: findInsertionPoints"); }
             prevs.clear();
             nexts.clear();
             bool finish;
@@ -384,9 +375,7 @@ private:
                 if (curr->m_node.is_deleted() || !curr->m_node->m_val) { // maybe curr was unlinked. start the whole operation over!
                     break;
                 }
-                int counter1 = 0;
                 for (;;) {
-                    counter1 ++; if(counter1 == MAX_COUNT) { assert(false && "INDEX: findInsertionPoints_inner"); }
                     std::tie(finish, prev, next) = walkLevel(curr, node_to_find);
                     if (finish) break;
                     curr = level_head;

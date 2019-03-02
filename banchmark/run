@@ -1,0 +1,10 @@
+#!/bin/sh
+
+######## ENTER PATH TO YOUR JAVA, JAVAC AND JAR BINARIES HERE
+export JAVA_HOME=/usr/local/lib/jdk-8u25
+export _JAVA_OPTIONS=
+export PATH=${JAVA_HOME}/bin:${PATH}
+
+java="java"
+
+exec ${java} -server -d64 -XX:+UseParallelGC -Xms4G -Xmx4G -jar build/experiments.jar $*
