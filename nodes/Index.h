@@ -152,8 +152,6 @@ public:
         if (node_to_add.is_null())
             throw std::invalid_argument("NULL pointer node was given to Index::add");
 
-        index_node_vec idxs;
-        auto level = createNewIndexNode(node_to_add, idxs);
 
         // find insertion points in the existing levels - from bottom up
         auto head = m_head_bottom;
@@ -161,7 +159,10 @@ public:
         index_node_vec prevs;
         index_node_vec nexts;
         findInsertionPoints(node_to_add, prevs, nexts);
-        while (head && head->m_level <= level) {
+        index_node_vec idxs;
+        auto size = prevs.size();
+        auto level = createNewIndexNode(node_to_add, idxs, size);
+        while (head && head->m_level < level + 1 && head->m_level < size) {
             auto curr_level = head->m_level;
             if (!insert_in_level(idxs[curr_level], prevs[curr_level], nexts[curr_level], head)) {
                 // the node is exactly being deleted
@@ -175,13 +176,14 @@ public:
             return;
         }
 
-        int old_level = m_head_top->m_level; // maybe in the meanwhile things have changed..
+        head = m_head_top;
+        int old_level = head->m_level; // maybe in the meanwhile things have changed..
+        if (old_level > insertion_level) {
+            // there are layers we didn't get in. nevermind, abort
+            return;
+        }
         if (old_level < level) {
             // try to grow - as before only by one level at a time!
-            head = m_head_top;
-            old_level = head->m_level;
-            if (level <= old_level) // lost race to add level
-                return;
             node_t old_base = head->m_node;
             auto newh = std::make_shared<HeadIndex>(old_base, head, idxs[old_level + 1], old_level + 1);
             if (casHead(head, newh, true)) {
@@ -341,13 +343,17 @@ private:
         return std::make_tuple(true, q, r);
     }
 
-    long unsigned int createNewIndexNode(node_t node_to_add, index_node_vec& idxs) {
+    /**
+     * create a vector of new index nodes, of size level+1 (level is the max level in it)
+     * (level is randomly generated)
+     * @param max_level - maximum level to grow to
+     * */
+    long unsigned int createNewIndexNode(node_t node_to_add, index_node_vec& idxs, long unsigned int max_level) {
         int rnd = get_random_in_range(2, (1 << 30) - 1);
         long unsigned int level = 0;
         while (((rnd >>= 1) & 1) != 0)
             ++level;
-        long unsigned int old_level = m_head_top->m_level;
-        level = std::min(level, old_level + 1); // always try to grow by at most one level
+        level = std::min(level, max_level + 1); // always try to grow by at most one level
         std::shared_ptr<IndexNode> idx = NULL;
 
         // create the new nodes
