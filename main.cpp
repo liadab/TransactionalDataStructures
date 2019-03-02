@@ -66,7 +66,6 @@ public:
             try {
                 if (ops_in_tx == 0)
                 {
-                    main_write_to_log_file("txBegin");
                     tx->TXbegin();
                 }
                 ops_in_tx++;
@@ -74,7 +73,6 @@ public:
 
                 if (ops_in_tx == ops_per_transc || index_task == tasks_index_end - 1)
                 {
-                    main_write_to_log_file("txEnd");
                     tx->TXend<int, std::string>(recordMgr);
 
                     inserts_occurred += inserts_occurred_in_tx;
@@ -127,21 +125,18 @@ private:
         switch (task.task_type)
         {
             case TaskType::INSERT:
-                main_write_to_log_file("insert");
                 if (LL.put(task.key, task.val, recordMgr) == NULLOPT)
                 {
                     inserts_occurred_in_transc++;
                 }
                 break;
             case TaskType::REMOVE:
-                main_write_to_log_file("remove");
                 if (!(LL.remove(task.key, recordMgr) == NULLOPT))
                 {
                     removes_occurred_in_transc++;
                 }
                 break;
             case TaskType::CONTAINS:
-                main_write_to_log_file("contains");
                 LL.containsKey(task.key, recordMgr);
                 break;
         }
@@ -188,7 +183,7 @@ void fill_tasks_vector(std::vector<Task>& tasks,
     std::random_shuffle(tasks.begin(), tasks.end());
 }
 
-void print_tasks_vector(const std::vector<Task> tasks)
+void print_tasks_vector(const std::vector<Task> tasks) //for debug
 {
     for (unsigned int i = 0; i < tasks.size(); i++)
     {
@@ -208,7 +203,9 @@ void print_tasks_vector(const std::vector<Task> tasks)
     }
 }
 
-int init_linked_list(LinkedList<int, std::string>& LL, std::shared_ptr<TX> tx, const RecordMgr<int, std::string>& recordMgr)
+int init_linked_list(LinkedList<int, std::string>& LL,
+                     std::shared_ptr<TX> tx,
+                     const RecordMgr<int, std::string>& recordMgr)
 {
     tx->TXbegin(); //we use tx here to avoid singleton operation
     int init_LL_size = 0;
@@ -258,8 +255,6 @@ void print_results(std::list<Worker>& workers, int linked_list_init_size, int n_
 }
 
 int main(int argc, char *argv[]) {
-//    restart_log_file();
-
     //parameters:
     uint32_t n_threads = std::atoi(argv[1]);
     uint32_t n_tasks = std::atoi(argv[2]);
@@ -317,21 +312,3 @@ int main(int argc, char *argv[]) {
     print_results(workers, init_LL_size, n_threads, running_time_sec);
     return 0;
 }
-
-//TODO delete comments:
-//
-//    uint32_t n_tasks = argv[0];
-//    uint32_t n_threads = argv[1];
-//	  uint32_t n_tasks_per_transaction = argv[2];
-//	  uint32_t x_of_100_inserts = std::stoi(argv[3]);
-//    uint32_t x_of_100_removes = std::stoi(argv[4]);
-//
-//    std::vector<Task> tasks2{
-//            {INSERT, 3, "three"},
-//            {INSERT, 4, "four"},
-//            {INSERT, 45, "rfour"},
-//            {REMOVE, 4, DUMMY_VAL},
-//            {REMOVE, 5, DUMMY_VAL},
-//            {CONTAINS, 2, DUMMY_VAL},
-//            {CONTAINS, 4, DUMMY_VAL}
-//    };
