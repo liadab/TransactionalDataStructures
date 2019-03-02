@@ -12,16 +12,16 @@
 template <typename key_t, typename val_t>
 class LNodeWrapper {
 public:
-    LNodeWrapper() : m_node(NULL), deleted(false) {}
+    LNodeWrapper() : m_node(NULL), deleted(std::make_shared<bool>(false)) {}
 
     explicit LNodeWrapper(key_t key) {
         m_node = new LNode<key_t, val_t>(key);
-        deleted = false;
+        deleted = std::make_shared<bool>(false);
     }
 
     LNodeWrapper(key_t key, val_t val) : LNodeWrapper(std::move(key)){
         m_node->m_val = std::move(val);
-        deleted = false;
+        deleted = std::make_shared<bool>(false);
     }
 
     bool operator==(const LNodeWrapper<key_t, val_t>& other) const {
@@ -41,11 +41,11 @@ public:
     }
 
     bool is_deleted() {
-        return deleted;
+        return *deleted;
     }
 
     void delete_wrapped_node() {
-        deleted = true;
+        *deleted = true;
     }
 
     LNode<key_t, val_t>* operator->() {
@@ -79,7 +79,7 @@ public:
 
 private:
     LNode<key_t, val_t>* m_node;
-    bool deleted;
+    std::shared_ptr<bool> deleted;
 };
 
 namespace std {
@@ -104,11 +104,11 @@ namespace std {
 template <typename key_t, typename val_t>
 class LNodeWrapper {
 public:
-    LNodeWrapper() : m_node(NULL) , deleted(false) {}
+    LNodeWrapper() : m_node(NULL) , deleted(std::make_shared<bool>(false)) {}
 
-    LNodeWrapper(LNode<key_t, val_t>* node) : m_node(node) , deleted(false) {}
+    LNodeWrapper(LNode<key_t, val_t>* node) : m_node(node) , deleted(std::make_shared<bool>(false)) {}
 
-    LNodeWrapper(const LNodeWrapper<key_t, val_t>& other) : m_node(other.m_node) , deleted(false) {}
+    LNodeWrapper(const LNodeWrapper<key_t, val_t>& other) : m_node(other.m_node) , deleted(std::make_shared<bool>(false)) {}
 
     bool operator==(const LNodeWrapper<key_t, val_t>& other) const {
         return m_node == other.m_node;
@@ -127,11 +127,13 @@ public:
     }
 
     bool is_deleted() {
-        return deleted;
+        return *deleted;
     }
 
-    void delete_wrapped_node() {
-        deleted = true;
+    //return the wrapped node and this wrapper is considered deleted
+    LNode<key_t, val_t>* delete_wrapped_node() {
+        *deleted = true;
+        return m_node;
     }
 
     LNode<key_t, val_t>* operator->() {
@@ -165,7 +167,7 @@ public:
 
 private:
     LNode<key_t, val_t>* m_node;
-    bool deleted;
+    std::shared_ptr<bool> deleted;
 };
 
 namespace std {
@@ -192,12 +194,12 @@ template <typename key_t, typename val_t>
 class LNodeWrapper {
 public:
     LNodeWrapper() {
-        deleted = false;
+        deleted = std::make_shared<bool>(false);
     };
 
     explicit LNodeWrapper(key_t key) {
         m_node = std::make_shared<LNode<key_t, val_t>>(std::move(key));
-        deleted = false;
+        deleted = std::make_shared<bool>(false);
     }
 
     LNodeWrapper(key_t key, val_t val) : LNodeWrapper(std::move(key)){
@@ -221,11 +223,11 @@ public:
     }
 
     bool is_deleted() {
-        return deleted;
+        return *deleted;
     }
 
     void delete_wrapped_node() {
-        deleted = true;
+        *deleted = true;
     }
 
     LNode<key_t, val_t>* operator->() {
@@ -259,7 +261,7 @@ public:
 
 private:
     std::shared_ptr<LNode<key_t, val_t>> m_node;
-    bool deleted;
+    std::shared_ptr<bool> deleted;
 };
 
 namespace std {
