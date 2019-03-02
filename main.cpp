@@ -29,7 +29,7 @@ struct Task
     size_t val;
 };
 
-static const int N_INIT_LIST = 10;
+static const int N_INIT_LIST = 1000;
 
 class Worker
 {
@@ -43,18 +43,22 @@ public:
            const int _ops_per_transc,
            std::shared_ptr<RecordMgr<size_t, size_t>::record_manager_t> global_recordMgr,
            size_t tid
-           ):
-                   tasks(_tasks),
-                   tasks_index_begin(_tasks_index_begin),
-                   tasks_index_end(_tasks_index_end),
-                   LL(_LL),
-                   tx(std::move(_tx)),
-                   ops_per_transc(_ops_per_transc),
-                   recordMgr(global_recordMgr, tid)
+    ):
+            tasks(_tasks),
+            tasks_index_begin(_tasks_index_begin),
+            tasks_index_end(_tasks_index_end),
+            LL(_LL),
+            tx(std::move(_tx)),
+            ops_per_transc(_ops_per_transc),
+            recordMgr(global_recordMgr, tid)
     {}
 
     void work()
     {
+        int ops_in_tx = 0;
+        int inserts_occurred_in_tx = 0;
+        int removes_occurred_in_tx = 0;
+
         for (unsigned int index_task = tasks_index_begin; index_task < tasks_index_end; index_task++) {
             try {
                 if (ops_in_tx == 0)
@@ -62,46 +66,39 @@ public:
                     tx->TXbegin();
                 }
                 ops_in_tx++;
-                commit_task_and_update_counters(index_task);
+                commit_task_and_update_counters(index_task, inserts_occurred_in_tx, removes_occurred_in_tx);
 
                 if (ops_in_tx == ops_per_transc || index_task == tasks_index_end - 1)
                 {
                     tx->TXend<size_t, size_t>(recordMgr);
-                    update_counters_success_tx();
+
+                    inserts_occurred += inserts_occurred_in_tx;
+                    removes_occurred += removes_occurred_in_tx;
+                    succ_ops += ops_in_tx;
+
+                    ops_in_tx = 0;
+                    inserts_occurred_in_tx = 0;
+                    removes_occurred_in_tx = 0;
                 }
             }
             catch(TxAbortException& e)
             {
-                total_fail_ops += ops_in_tx;
-                update_counters_fail_tx();
+                fail_ops += ops_in_tx;
+
+                ops_in_tx = 0;
+                inserts_occurred_in_tx = 0;
+                removes_occurred_in_tx = 0;
             }
         }
     }
 
-    void print_worker_results() const
-    {
-        std::cout << "inserts occurred:" << total_inserts_occurred << std::endl;
-        std::cout << "removes occurred:" << total_removes_occurred << std::endl;
-        std::cout << "succ ops:" << total_succ_ops << std::endl;
-        std::cout << "fail ops:" << total_fail_ops << std::endl;
+    int getSucc_ops() const { return succ_ops; }
 
-        std::cout << "inserted: " << std::endl;
-        for (auto& key: inserted) { std::cout << key << std::endl; }
-        std::cout << "removed: " << std::endl;
-        for (auto& key: removed) { std::cout << key << std::endl; }
-        std::cout << "failed insert: " << std::endl;
-        for (auto& key: failed_insert) { std::cout << key << std::endl; }
-        std::cout << "failed remove: " << std::endl;
-        for (auto& key: failed_remove) { std::cout << key << std::endl; }
-    }
+    int getFail_ops() const { return fail_ops; }
 
-    int getSucc_ops() const { return total_succ_ops; }
+    int getInserts_occurred() const { return inserts_occurred; }
 
-    int getFail_ops() const { return total_fail_ops; }
-
-    int getInserts_occurred() const { return total_inserts_occurred; }
-
-    int getRemoves_occurred() const { return total_removes_occurred; }
+    int getRemoves_occurred() const { return removes_occurred; }
 
 private:
     const std::vector<Task>& tasks;
@@ -112,57 +109,14 @@ private:
     const int ops_per_transc;
     RecordMgr<size_t, size_t> recordMgr;
 
-    int ops_in_tx = 0;
-    int inserts_occurred_in_tx = 0;
-    int removes_occurred_in_tx = 0;
+    int succ_ops = 0;
+    int fail_ops = 0;
+    int inserts_occurred = 0;
+    int removes_occurred = 0;
 
-    int total_succ_ops = 0;
-    int total_fail_ops = 0;
-    int total_inserts_occurred = 0;
-    int total_removes_occurred = 0;
-
-    std::vector<size_t> inserted_in_tx; //for debug
-    std::vector<size_t> removed_in_tx;
-    std::vector<size_t> inserted;
-    std::vector<size_t> removed;
-    std::vector<size_t> failed_insert;
-    std::vector<size_t> failed_remove;
-
-    void update_counters_success_tx()
-    {
-        total_inserts_occurred += inserts_occurred_in_tx;
-        total_removes_occurred += removes_occurred_in_tx;
-        total_succ_ops += ops_in_tx;
-
-        inserted.push_back(333);
-        removed.push_back(333);
-        inserted.insert(inserted.end(), inserted_in_tx.begin(), inserted_in_tx.end());
-        removed.insert(removed.end(), removed_in_tx.begin(), removed_in_tx.end());
-
-        restart_tx_counter();
-    }
-
-    void update_counters_fail_tx()
-    {
-        failed_insert.push_back(333);
-        failed_remove.push_back(333);
-        failed_insert.insert(failed_insert.end(), inserted_in_tx.begin(), inserted_in_tx.end());
-        failed_remove.insert(failed_remove.end(), removed_in_tx.begin(), removed_in_tx.end());
-
-        restart_tx_counter();
-    }
-
-    void restart_tx_counter()
-    {
-        ops_in_tx = 0;
-        inserts_occurred_in_tx = 0;
-        removes_occurred_in_tx = 0;
-
-        inserted_in_tx.clear();
-        removed_in_tx.clear();
-    }
-
-    void commit_task_and_update_counters(int index_task)
+    void commit_task_and_update_counters(int index_task,
+                                         int &inserts_occurred_in_transc,
+                                         int &removes_occurred_in_transc)
     {
         Task task = tasks.at(index_task);
         switch (task.task_type)
@@ -170,15 +124,13 @@ private:
             case TaskType::INSERT:
                 if (LL.put(task.key, task.val, recordMgr) == NULLOPT)
                 {
-                    inserts_occurred_in_tx++;
-                    inserted_in_tx.push_back(task.key);
+                    inserts_occurred_in_transc++;
                 }
                 break;
             case TaskType::REMOVE:
                 if (!(LL.remove(task.key, recordMgr) == NULLOPT))
                 {
-                    removes_occurred_in_tx++;
-                    removed_in_tx.push_back(task.key);
+                    removes_occurred_in_transc++;
                 }
                 break;
             case TaskType::CONTAINS:
@@ -226,28 +178,23 @@ void fill_tasks_vector(std::vector<Task>& tasks,
     std::random_shuffle(tasks.begin(), tasks.end());
 }
 
-void print_task(const Task& task)
-{
-    switch (task.task_type)
-    {
-        case TaskType::INSERT:
-            std::cout << "INSERT " << task.key << " " << task.val << std::endl;
-            break;
-        case TaskType::REMOVE:
-            std::cout << "REMOVE " << task.key << " " << task.val << std::endl;
-            break;
-        case TaskType::CONTAINS:
-            std::cout << "CONTAINS " << task.key << " " << task.val << std::endl;
-            break;
-    }
-}
-
 void print_tasks_vector(const std::vector<Task> tasks) //for debug
 {
     for (unsigned int i = 0; i < tasks.size(); i++)
     {
         const Task & task = tasks.at(i);
-        print_task(task);
+        switch (task.task_type)
+        {
+            case TaskType::INSERT:
+                std::cout << "INSERT " << task.key << " " << task.val << std::endl;
+                break;
+            case TaskType::REMOVE:
+                std::cout << "REMOVE " << task.key << " " << task.val << std::endl;
+                break;
+            case TaskType::CONTAINS:
+                std::cout << "CONTAINS " << task.key << " " << task.val << std::endl;
+                break;
+        }
     }
 }
 
@@ -260,8 +207,6 @@ int init_linked_list(LinkedList<size_t, size_t>& LL,
     for (int i = 0; i < N_INIT_LIST; i++)
     {
         Task task = get_random_task(INSERT);
-        print_task(task); //for debug
-
         if (LL.put(task.key, task.val, recordMgr) == NULLOPT)
         {
             init_LL_size++;
@@ -275,8 +220,6 @@ void print_results(std::list<Worker>& workers, int linked_list_init_size, int n_
                    std::chrono::duration<double>& running_time_sec)
 {
     int total_linked_list_size = linked_list_init_size;
-    int total_inserts_occured = 0;
-    int total_removes_occured = 0;
     int total_ops_succeed = 0;
     int total_ops_failed = 0;
     size_t count = 0;
@@ -287,10 +230,11 @@ void print_results(std::list<Worker>& workers, int linked_list_init_size, int n_
         int fail_ops = worker.getFail_ops();
 
         std::cout << "\nThread " << ++count << std::endl;
-        worker.print_worker_results();
+        std::cout << "inserts occurred:" << inserts_occurred << std::endl;
+        std::cout << "removes occurred:" << removes_occurred << std::endl;
+        std::cout << "succ ops:" << succ_ops << std::endl;
+        std::cout << "fail ops:" << fail_ops << std::endl;
 
-        total_inserts_occured += inserts_occurred;
-        total_removes_occured += removes_occurred;
         total_linked_list_size += inserts_occurred;
         total_linked_list_size -= removes_occurred;
         total_ops_succeed += succ_ops;
@@ -299,8 +243,6 @@ void print_results(std::list<Worker>& workers, int linked_list_init_size, int n_
 
     std::cout << "\n////////\nToatl: " << std::endl;
     std::cout << "total ops succeed: " << total_ops_succeed << std::endl;
-    std::cout << "total inserts occurred: " << total_inserts_occured << std::endl;
-    std::cout << "total removes occurred: " << total_removes_occured<< std::endl;
     std::cout << "total ops failed: " << total_ops_failed << std::endl;
     std::cout << "total LL size: " << total_linked_list_size << std::endl;
 
@@ -320,7 +262,7 @@ int main(int argc, char *argv[]) {
     //create random tasks:
     std::vector<Task> tasks;
     fill_tasks_vector(tasks, n_tasks, x_of_100_inserts, x_of_100_removes);
-    print_tasks_vector(tasks); //for debug
+    //print_tasks_vector(tasks); //for debug
 
     //create linked list:
     std::shared_ptr<TX> tx = std::make_shared<TX>();
@@ -328,7 +270,6 @@ int main(int argc, char *argv[]) {
     LinkedList<size_t, size_t> linked_list(tx, record_mgr);
 
     //init linked list:
-    std::cout << "initializing linked list..."  << std::endl;
     int init_LL_size = init_linked_list(linked_list, tx, record_mgr);
     std::cout << "initial linked list size:" << init_LL_size << std::endl;
 
@@ -354,7 +295,7 @@ int main(int argc, char *argv[]) {
     }
     for (auto &thread: threads)
     {
-         thread.join();
+        thread.join();
     }
 
     //measure time end:
@@ -364,6 +305,5 @@ int main(int argc, char *argv[]) {
     std::cout << "DONE" << std::endl;
     std::chrono::duration<double> running_time_sec = end_time - start_time;
     print_results(workers, init_LL_size, n_threads, running_time_sec);
-    std::cout << "LL size: " << linked_list.get_size() - 1 << std::endl;
     return 0;
 }
