@@ -146,8 +146,8 @@ private:
     {
         failed_insert.push_back(333);
         failed_remove.push_back(333);
-        failed_insert.insert(inserted.end(), inserted_in_tx.begin(), inserted_in_tx.end());
-        failed_remove.insert(removed.end(), removed_in_tx.begin(), removed_in_tx.end());
+        failed_insert.insert(failed_insert.end(), inserted_in_tx.begin(), inserted_in_tx.end());
+        failed_remove.insert(failed_remove.end(), removed_in_tx.begin(), removed_in_tx.end());
 
         restart_tx_counter();
     }
@@ -328,6 +328,7 @@ int main(int argc, char *argv[]) {
     LinkedList<size_t, size_t> linked_list(tx, record_mgr);
 
     //init linked list:
+    std::cout << "initializing linked list..."  << std::endl;
     int init_LL_size = init_linked_list(linked_list, tx, record_mgr);
     std::cout << "initial linked list size:" << init_LL_size << std::endl;
 
