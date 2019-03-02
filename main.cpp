@@ -55,10 +55,6 @@ public:
 
     void work()
     {
-        int ops_in_tx = 0;
-        int inserts_occurred_in_tx = 0;
-        int removes_occurred_in_tx = 0;
-
         for (unsigned int index_task = tasks_index_begin; index_task < tasks_index_end; index_task++) {
             try {
                 if (ops_in_tx == 0)
@@ -66,30 +62,37 @@ public:
                     tx->TXbegin();
                 }
                 ops_in_tx++;
-                commit_task_and_update_counters(index_task, inserts_occurred_in_tx, removes_occurred_in_tx);
+                commit_task_and_update_counters(index_task);
 
                 if (ops_in_tx == ops_per_transc || index_task == tasks_index_end - 1)
                 {
                     tx->TXend<size_t, size_t>(recordMgr);
-
-                    inserts_occurred += inserts_occurred_in_tx;
-                    removes_occurred += removes_occurred_in_tx;
-                    succ_ops += ops_in_tx;
-
-                    ops_in_tx = 0;
-                    inserts_occurred_in_tx = 0;
-                    removes_occurred_in_tx = 0;
+                    update_counters_success_tx();
                 }
             }
             catch(TxAbortException& e)
             {
                 fail_ops += ops_in_tx;
-
-                ops_in_tx = 0;
-                inserts_occurred_in_tx = 0;
-                removes_occurred_in_tx = 0;
+                update_counters_fail_tx();
             }
         }
+    }
+
+    void print_worker_results() const
+    {
+        std::cout << "inserts occurred:" << inserts_occurred << std::endl;
+        std::cout << "removes occurred:" << removes_occurred << std::endl;
+        std::cout << "succ ops:" << succ_ops << std::endl;
+        std::cout << "fail ops:" << fail_ops << std::endl;
+
+        std::cout << "inserted: " << std::endl;
+        for (auto& key: inserted) { std::cout << key << std::endl; }
+        std::cout << "removed: " << std::endl;
+        for (auto& key: removed) { std::cout << key << std::endl; }
+        std::cout << "failed insert: " << std::endl;
+        for (auto& key: failed_insert) { std::cout << key << std::endl; }
+        std::cout << "failed remove: " << std::endl;
+        for (auto& key: failed_remove) { std::cout << key << std::endl; }
     }
 
     int getSucc_ops() const { return succ_ops; }
@@ -109,14 +112,57 @@ private:
     const int ops_per_transc;
     RecordMgr<size_t, size_t> recordMgr;
 
-    int succ_ops = 0;
-    int fail_ops = 0;
-    int inserts_occurred = 0;
-    int removes_occurred = 0;
+    int ops_in_tx;
+    int inserts_occurred_in_tx;
+    int removes_occurred_in_tx;
 
-    void commit_task_and_update_counters(int index_task,
-                                         int &inserts_occurred_in_transc,
-                                         int &removes_occurred_in_transc)
+    int succ_ops;
+    int fail_ops;
+    int inserts_occurred;
+    int removes_occurred;
+
+    std::vector<size_t> inserted_in_tx; //for debug
+    std::vector<size_t> removed_in_tx;
+    std::vector<size_t> inserted;
+    std::vector<size_t> removed;
+    std::vector<size_t> failed_insert;
+    std::vector<size_t> failed_remove;
+
+    void update_counters_success_tx()
+    {
+        inserts_occurred += inserts_occurred_in_tx;
+        removes_occurred += removes_occurred_in_tx;
+        succ_ops += ops_in_tx;
+
+        inserted.push_back(333);
+        removed.push_back(333);
+        inserted.insert(inserted.end(), inserted_in_tx.begin(), inserted_in_tx.end());
+        removed.insert(removed.end(), removed_in_tx.begin(), removed_in_tx.end());
+
+        restart_tx_counter();
+    }
+
+    void update_counters_fail_tx()
+    {
+        failed_insert.push_back(333);
+        failed_remove.push_back(333);
+        failed_insert.insert(inserted.end(), inserted_in_tx.begin(), inserted_in_tx.end());
+        failed_remove.insert(removed.end(), removed_in_tx.begin(), removed_in_tx.end());
+
+        restart_tx_counter();
+    }
+
+    void restart_tx_counter()
+    {
+        ops_in_tx = 0;
+        inserts_occurred_in_tx = 0;
+        removes_occurred_in_tx = 0;
+
+        inserted_in_tx.clear();
+        removed_in_tx.clear();
+    }
+
+    void commit_task_and_update_counters(int index_task)
     {
         Task task = tasks.at(index_task);
         switch (task.task_type)
@@ -124,13 +170,15 @@ private:
             case TaskType::INSERT:
                 if (LL.put(task.key, task.val, recordMgr) == NULLOPT)
                 {
-                    inserts_occurred_in_transc++;
+                    inserts_occurred_in_tx++;
+                    inserted_in_tx.push_back(task.key);
                 }
                 break;
             case TaskType::REMOVE:
                 if (!(LL.remove(task.key, recordMgr) == NULLOPT))
                 {
-                    removes_occurred_in_transc++;
+                    removes_occurred_in_tx++;
+                    removed_in_tx.push_back(task.key);
                 }
                 break;
             case TaskType::CONTAINS:
@@ -239,10 +287,7 @@ void print_results(std::list<Worker>& workers, int linked_list_init_size, int n_
         int fail_ops = worker.getFail_ops();
 
         std::cout << "\nThread " << ++count << std::endl;
-        std::cout << "inserts occurred:" << inserts_occurred << std::endl;
-        std::cout << "removes occurred:" << removes_occurred << std::endl;
-        std::cout << "succ ops:" << succ_ops << std::endl;
-        std::cout << "fail ops:" << fail_ops << std::endl;
+        worker.print_worker_results();
 
         total_inserts_occured += inserts_occurred;
         total_removes_occured += removes_occurred;
@@ -254,6 +299,8 @@ void print_results(std::list<Worker>& workers, int linked_list_init_size, int n_
 
     std::cout << "\n////////\nToatl: " << std::endl;
     std::cout << "total ops succeed: " << total_ops_succeed << std::endl;
+    std::cout << "total inserts occurred: " << total_inserts_occured << std::endl;
+    std::cout << "total removes occurred: " << total_removes_occured<< std::endl;
     std::cout << "total ops failed: " << total_ops_failed << std::endl;
     std::cout << "total LL size: " << total_linked_list_size << std::endl;
 
