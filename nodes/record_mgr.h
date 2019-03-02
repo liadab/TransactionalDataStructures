@@ -68,8 +68,8 @@ public:
 
     RecordMgr(const RecordMgr&) = delete;
 
-    auto getGuard() const {
-        return size_t(0);
+    size_t getGuard() const {
+        return 0;
     }
 
     LNodeWrapper<key_t, val_t> get_new_node(key_t key) const {
