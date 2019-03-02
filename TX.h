@@ -229,6 +229,7 @@ public:
                 auto& nodes = list_and_node.second;
                 for (auto &node : nodes) {
                     list->index.remove(node);
+                    recordMgr.retire_node(node);
                 }
             }
         }

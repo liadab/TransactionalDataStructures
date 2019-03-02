@@ -455,6 +455,7 @@ public:
                 toRemove->unlock();
                 pred->unlock();
                 index.remove(toRemove);
+                recordMgr.retire_node(toRemove);
                 return valToRet;
             } else {
                 if (m_tx->DEBUG_MODE_LL) {

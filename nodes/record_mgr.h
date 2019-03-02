@@ -42,6 +42,11 @@ public:
         return n;
     }
 
+    void retire_node(LNodeWrapper<key_t, val_t> n) const {
+        auto inner_node = n.delete_wrapped_node();
+        myRecManager->retire(tid, inner_node);
+    }
+
 private:
     std::shared_ptr<record_manager_t> myRecManager;
     int tid;
@@ -80,6 +85,10 @@ public:
         auto n = get_new_node(key);
         n->m_val = val;
         return n;
+    }
+
+    void retire_node(LNodeWrapper<key_t, val_t> n) const {
+        n.delete_wrapped_node();
     }
 
 private:
