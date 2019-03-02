@@ -24,11 +24,12 @@ public:
     }
 
     ~Index() {
-        m_head_top->m_up = std::shared_ptr<HeadIndex>();
-        m_head_top->m_right = std::shared_ptr<HeadIndex>();
-
-        m_head_bottom->m_up = std::shared_ptr<HeadIndex>();
-        m_head_bottom->m_right = std::shared_ptr<HeadIndex>();
+        auto curr_head = m_head_top;
+        while (curr_head) {
+            curr_head->m_up = std::shared_ptr<HeadIndex>();
+            curr_head->m_right = std::shared_ptr<HeadIndex>();
+            curr_head = curr_head->m_down;
+        }
     }
 
 private:
@@ -270,6 +271,7 @@ private:
         index_node_vec prevs;
         index_node_vec nexts;
         findInsertionPoints(node_to_find, prevs, nexts);
+        assert(prevs.size() >= 1 && "findPredecessor: findInsertionPoints didn't init prevs?!" );
         return prevs[0]->m_node;
     }
 
@@ -386,7 +388,7 @@ private:
                 for (;;) {
                     std::tie(finish, prev, next) = walkLevel(curr, node_to_find);
                     if (finish) break;
-                    curr = level_head;
+                    curr = level_head; // TODO: unefficient?!
                 }
                 if (prev->m_node.is_deleted() || !prev->m_node->m_val) // node prev is about to be removed, restart level
                     continue;
