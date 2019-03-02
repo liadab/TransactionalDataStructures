@@ -26,7 +26,7 @@ public:
 
     RecordMgr(const RecordMgr&) = delete;
 
-    auto getGuard() const -> record_manager_t::MemoryReclamationGuard {
+    auto getGuard() const -> typename record_manager_t::MemoryReclamationGuard {
         return myRecManager->getGuard(tid);
     }
 
