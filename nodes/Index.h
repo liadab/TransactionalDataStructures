@@ -23,6 +23,17 @@ public:
         m_head_top = m_head_bottom;
     }
 
+    ~Index() {
+        m_head_top->m_down = std::shared_ptr<IndexNode>();
+        m_head_top->m_up = std::shared_ptr<IndexNode>();
+        m_head_top->m_right = std::shared_ptr<IndexNode>();
+
+        m_head_bottom->m_down = std::shared_ptr<IndexNode>();
+        m_head_bottom->m_up = std::shared_ptr<IndexNode>();
+        m_head_bottom->m_right = std::shared_ptr<IndexNode>();
+
+    }
+
 private:
     class IndexNode {
     public:
@@ -172,7 +183,7 @@ public:
         }
 
         head = m_head_top;
-        int old_level = head->m_level; // maybe in the meanwhile things have changed..
+        auto old_level = head->m_level; // maybe in the meanwhile things have changed..
         if (old_level > insertion_level) {
             // there are layers we didn't get in. nevermind, abort
             return;
@@ -364,7 +375,7 @@ private:
             bool finish;
             auto level_head = m_head_top;
             std::shared_ptr<IndexNode> curr = level_head;
-            int level = level_head->m_level;
+            int64_t level = level_head->m_level;
             auto d = curr->m_down;
             std::shared_ptr<IndexNode> prev;
             std::shared_ptr<IndexNode> next;
@@ -385,7 +396,7 @@ private:
                 prevs[level] = prev;
                 nexts[level] = next;
                 if (!(d = prev->m_down)) { // no more levels left - we found the closest one
-                    assert(!level && "finished findInsertionPoints without getting to the bottom level?");
+                    assert(level == 0 && "finished findInsertionPoints without getting to the bottom level?");
                     return true;
                 }
                 curr = d;
