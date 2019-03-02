@@ -15,8 +15,6 @@
 //#include "nodes/utils.h"
 //#include "nodes/Index.h"
 
-using thread_counters = std::tuple<int, int, int, int>;
-
 enum TaskType
 {
     INSERT,
@@ -27,11 +25,10 @@ enum TaskType
 struct Task
 {
     TaskType task_type;
-    int key;
-    std::string val;
+    size_t key;
+    size_t val;
 };
 
-static const char alphanum[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 static const int N_INIT_LIST = 1000;
 
 class Worker
@@ -41,10 +38,10 @@ public:
     Worker(const std::vector<Task>& _tasks,
            const int _tasks_index_begin,
            const int _tasks_index_end,
-           LinkedList<int, std::string>& _LL,
+           LinkedList<size_t, size_t>& _LL,
            std::shared_ptr<TX> _tx,
            const int _ops_per_transc,
-           std::shared_ptr<RecordMgr<int, std::string>::record_manager_t> global_recordMgr,
+           std::shared_ptr<RecordMgr<size_t, size_t>::record_manager_t> global_recordMgr,
            size_t tid
            ):
                    tasks(_tasks),
@@ -73,7 +70,7 @@ public:
 
                 if (ops_in_tx == ops_per_transc || index_task == tasks_index_end - 1)
                 {
-                    tx->TXend<int, std::string>(recordMgr);
+                    tx->TXend<size_t, size_t>(recordMgr);
 
                     inserts_occurred += inserts_occurred_in_tx;
                     removes_occurred += removes_occurred_in_tx;
@@ -107,10 +104,10 @@ private:
     const std::vector<Task>& tasks;
     const int tasks_index_begin;
     const int tasks_index_end;
-    LinkedList<int, std::string>& LL;
+    LinkedList<size_t, size_t>& LL;
     std::shared_ptr<TX> tx;
     const int ops_per_transc;
-    RecordMgr<int, std::string> recordMgr;
+    RecordMgr<size_t, size_t> recordMgr;
 
     int succ_ops = 0;
     int fail_ops = 0;
@@ -145,14 +142,12 @@ private:
 
 Task get_random_task(TaskType task_op)
 {
-    int key = (rand() % (N_INIT_LIST * 10)) + 1;
+    size_t key = (rand() % (N_INIT_LIST * 10)) + 1;
 
-    std::string val;
+    size_t val;
     if (task_op == TaskType::INSERT)
     {
-        val += alphanum[rand() % (sizeof(alphanum) - 1)];
-        val += alphanum[rand() % (sizeof(alphanum) - 1)];
-        val += alphanum[rand() % (sizeof(alphanum) - 1)];
+        val = (rand() % (N_INIT_LIST * 10)) + 1;
     }
 
     return {task_op, key, val};
@@ -203,9 +198,9 @@ void print_tasks_vector(const std::vector<Task> tasks) //for debug
     }
 }
 
-int init_linked_list(LinkedList<int, std::string>& LL,
+int init_linked_list(LinkedList<size_t, size_t>& LL,
                      std::shared_ptr<TX> tx,
-                     const RecordMgr<int, std::string>& recordMgr)
+                     const RecordMgr<size_t, size_t>& recordMgr)
 {
     tx->TXbegin(); //we use tx here to avoid singleton operation
     int init_LL_size = 0;
@@ -217,7 +212,7 @@ int init_linked_list(LinkedList<int, std::string>& LL,
             init_LL_size++;
         }
     }
-    tx->TXend<int, std::string>(recordMgr);
+    tx->TXend<size_t, size_t>(recordMgr);
     return init_LL_size;
 }
 
@@ -262,7 +257,7 @@ int main(int argc, char *argv[]) {
     uint32_t x_of_100_inserts = std::atoi(argv[4]);
     uint32_t x_of_100_removes = std::atoi(argv[5]);
 
-    auto global_record_mgr = RecordMgr<int, std::string>::make_record_mgr(n_threads + 1);
+    auto global_record_mgr = RecordMgr<size_t, size_t>::make_record_mgr(n_threads + 1);
 
     //create random tasks:
     std::vector<Task> tasks;
@@ -271,8 +266,8 @@ int main(int argc, char *argv[]) {
 
     //create linked list:
     std::shared_ptr<TX> tx = std::make_shared<TX>();
-    RecordMgr<int, std::string> record_mgr(global_record_mgr, 0);
-    LinkedList<int, std::string> linked_list(tx, record_mgr);
+    RecordMgr<size_t, size_t> record_mgr(global_record_mgr, 0);
+    LinkedList<size_t, size_t> linked_list(tx, record_mgr);
 
     //init linked list:
     int init_LL_size = init_linked_list(linked_list, tx, record_mgr);
