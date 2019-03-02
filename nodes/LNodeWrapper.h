@@ -40,7 +40,7 @@ public:
         return m_node != NULL;
     }
 
-    bool is_deleted() {
+    bool is_deleted() const {
         return *deleted;
     }
 
@@ -126,7 +126,7 @@ public:
         return m_node != NULL;
     }
 
-    bool is_deleted() {
+    bool is_deleted() const {
         return *deleted;
     }
 
@@ -222,7 +222,7 @@ public:
         return static_cast<bool>(m_node);
     }
 
-    bool is_deleted() {
+    bool is_deleted() const {
         return *deleted;
     }
 
