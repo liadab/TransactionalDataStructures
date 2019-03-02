@@ -10,7 +10,7 @@ include_directories(common)
 
 add_executable(tds main.cpp nodes/LNode.h datatypes/dummyIndex.h nodes/utils.cpp TX.h optional.h nodes/QNode.h datatypes/Queue.h datatypes/LocalQueue.h nodes/record_mgr.h)
 #target_compile_definitions(tds -DSHARED_PTR)
-add_compile_definitions(DEBRA)
+#add_compile_definitions(DEBRA)
 
 add_executable(tds_unsafe main.cpp nodes/LNode.h datatypes/dummyIndex.h nodes/utils.cpp TX.h optional.h nodes/QNode.h datatypes/Queue.h datatypes/LocalQueue.h nodes/record_mgr.h)
 set_property(TARGET tds_unsafe PROPERTY COMPILE_DEFINITIONS UNSAFE)
