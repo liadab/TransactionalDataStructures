@@ -588,7 +588,7 @@ public:
         uint64_t res = 0;
         while(!cur.is_null()) {
             res ++;
-            std::cout >> cur->m_key std::endl;
+            std::cout << cur->m_key << std::endl;
             cur = cur->m_next;
         }
         return res;
