@@ -371,9 +371,9 @@ private:
             prevs.clear();
             nexts.clear();
             bool finish;
-            auto tmp_head = m_head_top;
-            std::shared_ptr<IndexNode> curr = tmp_head;
-            int level = tmp_head->m_level;
+            auto level_head = m_head_top;
+            std::shared_ptr<IndexNode> curr = level_head;
+            int level = level_head->m_level;
             auto d = curr->m_down;
             std::shared_ptr<IndexNode> prev;
             std::shared_ptr<IndexNode> next;
@@ -389,6 +389,7 @@ private:
                     counter1 ++; if(counter1 == MAX_COUNT) { assert(false && "INDEX: findInsertionPoints_inner"); }
                     std::tie(finish, prev, next) = walkLevel(curr, node_to_find);
                     if (finish) break;
+                    curr = level_head;
                 }
                 if (prev->m_node.is_deleted() || !prev->m_node->m_val) // node prev is about to be removed, restart level
                     continue;
@@ -400,6 +401,7 @@ private:
                 }
                 curr = d;
                 level--;
+                level_head = level_head->m_down;
             }
         }
     }
