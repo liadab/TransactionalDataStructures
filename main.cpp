@@ -29,7 +29,7 @@ struct Task
     size_t val;
 };
 
-static const int N_INIT_LIST = 1000;
+static const int N_INIT_LIST = 10;
 
 class Worker
 {
@@ -178,23 +178,28 @@ void fill_tasks_vector(std::vector<Task>& tasks,
     std::random_shuffle(tasks.begin(), tasks.end());
 }
 
+void print_task(const Task& task)
+{
+    switch (task.task_type)
+    {
+        case TaskType::INSERT:
+            std::cout << "INSERT " << task.key << " " << task.val << std::endl;
+            break;
+        case TaskType::REMOVE:
+            std::cout << "REMOVE " << task.key << " " << task.val << std::endl;
+            break;
+        case TaskType::CONTAINS:
+            std::cout << "CONTAINS " << task.key << " " << task.val << std::endl;
+            break;
+    }
+}
+
 void print_tasks_vector(const std::vector<Task> tasks) //for debug
 {
     for (unsigned int i = 0; i < tasks.size(); i++)
     {
         const Task & task = tasks.at(i);
-        switch (task.task_type)
-        {
-            case TaskType::INSERT:
-                std::cout << "INSERT " << task.key << " " << task.val << std::endl;
-                break;
-            case TaskType::REMOVE:
-                std::cout << "REMOVE " << task.key << " " << task.val << std::endl;
-                break;
-            case TaskType::CONTAINS:
-                std::cout << "CONTAINS " << task.key << " " << task.val << std::endl;
-                break;
-        }
+        print_task(task);
     }
 }
 
@@ -207,6 +212,8 @@ int init_linked_list(LinkedList<size_t, size_t>& LL,
     for (int i = 0; i < N_INIT_LIST; i++)
     {
         Task task = get_random_task(INSERT);
+        print_task(task); //for debug
+
         if (LL.put(task.key, task.val, recordMgr) == NULLOPT)
         {
             init_LL_size++;
@@ -220,6 +227,8 @@ void print_results(std::list<Worker>& workers, int linked_list_init_size, int n_
                    std::chrono::duration<double>& running_time_sec)
 {
     int total_linked_list_size = linked_list_init_size;
+    int total_inserts_occured = 0;
+    int total_removes_occured = 0;
     int total_ops_succeed = 0;
     int total_ops_failed = 0;
     size_t count = 0;
@@ -235,6 +244,8 @@ void print_results(std::list<Worker>& workers, int linked_list_init_size, int n_
         std::cout << "succ ops:" << succ_ops << std::endl;
         std::cout << "fail ops:" << fail_ops << std::endl;
 
+        total_inserts_occured += inserts_occurred;
+        total_removes_occured += removes_occurred;
         total_linked_list_size += inserts_occurred;
         total_linked_list_size -= removes_occurred;
         total_ops_succeed += succ_ops;
@@ -262,7 +273,7 @@ int main(int argc, char *argv[]) {
     //create random tasks:
     std::vector<Task> tasks;
     fill_tasks_vector(tasks, n_tasks, x_of_100_inserts, x_of_100_removes);
-    //print_tasks_vector(tasks); //for debug
+    print_tasks_vector(tasks); //for debug
 
     //create linked list:
     std::shared_ptr<TX> tx = std::make_shared<TX>();
@@ -305,6 +316,6 @@ int main(int argc, char *argv[]) {
     std::cout << "DONE" << std::endl;
     std::chrono::duration<double> running_time_sec = end_time - start_time;
     print_results(workers, init_LL_size, n_threads, running_time_sec);
-    std::cout << "LL size: " << linked_list.get_size() << std::endl;
+    std::cout << "LL size: " << linked_list.get_size() - 1 << std::endl;
     return 0;
 }
