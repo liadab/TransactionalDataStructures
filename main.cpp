@@ -145,7 +145,7 @@ private:
 
 Task get_random_task(TaskType task_op)
 {
-    int key = (rand() % (N_INIT_LIST * 5)) + 1;
+    int key = (rand() % (N_INIT_LIST * 10)) + 1;
 
     std::string val;
     if (task_op == TaskType::INSERT)
