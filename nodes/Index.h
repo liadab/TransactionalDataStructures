@@ -23,6 +23,11 @@ public:
         m_head_top = m_head_bottom;
     }
 
+    ~Index() {
+        m_head_top = std::shared_ptr<IndexNode>();
+        m_head_bottom = std::shared_ptr<IndexNode>();
+    }
+
 private:
     class IndexNode {
     public:
