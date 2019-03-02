@@ -53,7 +53,11 @@ private:
          */
         bool link(std::shared_ptr<IndexNode> succ, std::shared_ptr<IndexNode> new_succ) { // TODO: final??
             new_succ->m_right = succ;
-            return m_node->m_val && casRight(succ, new_succ);
+            if (m_node.is_deleted() || !m_node->m_val) {
+                // important so there won't be a race with anyone trying to unlink this
+                return false;
+            }
+            return casRight(succ, new_succ);
         }
 
         /**
@@ -67,7 +71,7 @@ private:
         bool unlink(std::shared_ptr<IndexNode> succ) { // TODO final
             if (!succ)
                 return true;
-            if (!(m_node->m_val)) {
+            if (m_node.is_deleted() || !m_node->m_val) {
                 // important so there won't be a race with anyone trying to unlink this
                 return false;
             }
@@ -125,7 +129,7 @@ public:
             if (prev->link(next, new_node)) {
                 return true;
             }
-            if (!new_node->m_node->m_val) {
+            if (new_node->m_node.is_deleted() || new_node->m_node->m_val) {
                 return false;
             } // node is exactly being deleted, abort
             int counter1 = 0;
@@ -144,6 +148,7 @@ public:
      * @param node_to_add    the node to be added
      */
     void add(node_t node_to_add) {
+        // node_to_add is always safe to use because it is guarded by our caller
         if (node_to_add.is_null())
             throw std::invalid_argument("NULL pointer node was given to Index::add");
 
@@ -210,7 +215,7 @@ public:
         for (; ; ) {
             counter1 ++; if(counter1 == MAX_COUNT) { assert(false && "INDEX: getPred_inner"); }
             node_t b = findPredecessor(node);
-            if (b->m_val) { // not deleted
+            if (!b.is_deleted() && b->m_val) { // not deleted
                 return b;
             }
         }
@@ -309,7 +314,7 @@ private:
      * walk on one level, starts with start, until the predecessor (smaller or equal) of node
      *
      * @param start the node to start the search from
-     * @param node_to_add node to search
+     * @param node_to_add node to search - notice! it will never be deleted during our ops, because it is guarded by the caller
      * @return a tuple: is the search was finished (or needs to restart), predecessor, predecessor's right
      * */
     std::tuple<bool, std::shared_ptr<IndexNode>, std::shared_ptr<IndexNode>> walkLevel
@@ -323,13 +328,14 @@ private:
             node_t n = r->m_node;
             // compare before deletion check avoids needing recheck
             bool c = (node_to_add->m_key > n->m_key);
-            if (!n->m_val) { // need to unlink deleted node
+            if (n.is_deleted() || !n->m_val) { // need to unlink deleted node
                 if (!q->unlink(r)) { // need to restart walk..
                     return std::make_tuple(false, std::shared_ptr<IndexNode>(), std::shared_ptr<IndexNode>());
                 }
             } else if (c) {
                 q = r;
             } else break;
+
             r = q->m_right;
         }
         return std::make_tuple(true, q, r);
@@ -352,7 +358,7 @@ private:
         return level;
     }
 
-    void findInsertionPoints(node_t node_to_find, index_node_vec& prevs, index_node_vec& nexts){
+    bool findInsertionPoints(node_t node_to_find, index_node_vec& prevs, index_node_vec& nexts){
         int counter = 0;
         while (true) {
             counter ++; if(counter == MAX_COUNT) { assert(false && "INDEX: findInsertionPoints"); }
@@ -369,7 +375,7 @@ private:
             prevs.resize(level + 1);
             nexts.resize(level + 1);
             while (level > -1) {
-                if (!curr->m_node->m_val) { // maybe curr was unlinked. start the whole operation over!
+                if (curr->m_node.is_deleted() || !curr->m_node->m_val) { // maybe curr was unlinked. start the whole operation over!
                     break;
                 }
                 int counter1 = 0;
@@ -378,13 +384,13 @@ private:
                     std::tie(finish, prev, next) = walkLevel(curr, node_to_find);
                     if (finish) break;
                 }
-                if (!prev->m_node->m_val) // node prev is about to be removed, restart level
+                if (prev->m_node.is_deleted() || !prev->m_node->m_val) // node prev is about to be removed, restart level
                     continue;
                 prevs[level] = prev;
                 nexts[level] = next;
                 if (!(d = prev->m_down)) { // no more levels left - we found the closest one
                     assert(!level && "finished findInsertionPoints without getting to the bottom level?");
-                    return;
+                    return true;
                 }
                 curr = d;
                 level--;
