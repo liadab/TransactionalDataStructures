@@ -132,7 +132,9 @@ public:
             if (new_node->m_node->is_deleted() || new_node->m_node->m_val) {
                 return false;
             } // node is exactly being deleted, abort
+            int counter1 = 0;
             for (; ; ) { // continously try to insert in level
+                counter1 ++; if(counter1 == MAX_COUNT) { assert(false && "INDEX: insert_in_level_inner"); }
                 std::tie(finish, prev, next) = walkLevel(head, new_node->m_node);
                 if (finish)
                     break;
@@ -209,7 +211,9 @@ public:
         if (node.is_null()) {
             throw std::invalid_argument("NULL pointer node was given to Index::getPred");
         }
+        int counter1 = 0;
         for (; ; ) {
+            counter1 ++; if(counter1 == MAX_COUNT) { assert(false && "INDEX: getPred_inner"); }
             node_t b = findPredecessor(node);
             if (!b->is_deleted() && b->m_val) { // not deleted
                 return b;
@@ -373,7 +377,9 @@ private:
                 if (curr->is_deleted() || !curr->m_node->m_val) { // maybe curr was unlinked. start the whole operation over!
                     break;
                 }
+                int counter1 = 0;
                 for (;;) {
+                    counter1 ++; if(counter1 == MAX_COUNT) { assert(false && "INDEX: findInsertionPoints_inner"); }
                     std::tie(finish, prev, next) = walkLevel(curr, node_to_find);
                     if (finish) break;
                 }
