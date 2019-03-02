@@ -37,10 +37,10 @@ public class Main {
 		LinkedList LL;		
 		Integer ops_per_transc;
 		
-		Integer succ_ops = 0;
-	    Integer fail_ops = 0;
-	    Integer inserts_occurred = 0;
-	    Integer removes_occurred = 0;
+		Integer total_succ_ops = 0;
+	    Integer total_fail_ops = 0;
+	    Integer total_inserts_occurred = 0;
+	    Integer total_removes_occurred = 0;
 		
 		public Worker(ArrayList<Task> tasks,
 					  int tasks_index_begin,
@@ -101,9 +101,9 @@ public class Main {
 					{
 						TX.TXend();
 						
-						inserts_occurred += inserts_occurred_in_tx[0];
-		                removes_occurred += removes_occurred_in_tx[0];
-		                succ_ops += ops_in_tx;
+						total_inserts_occurred += inserts_occurred_in_tx[0];
+		                total_removes_occurred += removes_occurred_in_tx[0];
+		                total_succ_ops += ops_in_tx;
 	
 		                ops_in_tx = 0;
 		                inserts_occurred_in_tx[0] = 0;
@@ -112,7 +112,7 @@ public class Main {
 				}
 				catch(TXLibExceptions.AbortException exp)
 				{
-					fail_ops += ops_in_tx;
+					total_fail_ops += ops_in_tx;
 					
 					ops_in_tx = 0;
 		            inserts_occurred_in_tx[0] = 0;
@@ -122,19 +122,19 @@ public class Main {
 		}
 
 		public Integer getSucc_ops() {
-			return succ_ops;
+			return total_succ_ops;
 		}
 
 		public Integer getFail_ops() {
-			return fail_ops;
+			return total_fail_ops;
 		}
 
 		public Integer getInserts_occurred() {
-			return inserts_occurred;
+			return total_inserts_occurred;
 		}
 
 		public Integer getRemoves_occurred() {
-			return removes_occurred;
+			return total_removes_occurred;
 		}
 	}
 	
@@ -224,21 +224,21 @@ public class Main {
 		
 		for (int i = 0; i < n_threads; i++)
 		{
-			int inserts_occurred = workers[i].getInserts_occurred();
-			int removes_occurred = workers[i].getRemoves_occurred();
-			int succ_ops = workers[i].getSucc_ops();
-			int fail_ops = workers[i].getFail_ops();
+			int total_inserts_occurred = workers[i].getInserts_occurred();
+			int total_removes_occurred = workers[i].getRemoves_occurred();
+			int total_succ_ops = workers[i].getSucc_ops();
+			int total_fail_ops = workers[i].getFail_ops();
 			 
 			 System.out.println("\nThread " + i);
-			 System.out.println("inserts occurred:" + inserts_occurred);
-			 System.out.println("removes occurred:" + removes_occurred);
-			 System.out.println("succ ops:" + succ_ops);
-			 System.out.println("fail ops:" + fail_ops);
+			 System.out.println("inserts occurred:" + total_inserts_occurred);
+			 System.out.println("removes occurred:" + total_removes_occurred);
+			 System.out.println("succ ops:" + total_succ_ops);
+			 System.out.println("fail ops:" + total_fail_ops);
 			
-			 total_linked_list_size += inserts_occurred;
-			 total_linked_list_size -= removes_occurred;
-			 total_ops_succeed += succ_ops;
-			 total_ops_failed += fail_ops;
+			 total_linked_list_size += total_inserts_occurred;
+			 total_linked_list_size -= total_removes_occurred;
+			 total_ops_succeed += total_succ_ops;
+			 total_ops_failed += total_fail_ops;
 		}
 		
 		System.out.println("\n////////\nToatl: ");

@@ -72,7 +72,7 @@ public:
             }
             catch(TxAbortException& e)
             {
-                fail_ops += ops_in_tx;
+                total_fail_ops += ops_in_tx;
                 update_counters_fail_tx();
             }
         }
@@ -80,10 +80,10 @@ public:
 
     void print_worker_results() const
     {
-        std::cout << "inserts occurred:" << inserts_occurred << std::endl;
-        std::cout << "removes occurred:" << removes_occurred << std::endl;
-        std::cout << "succ ops:" << succ_ops << std::endl;
-        std::cout << "fail ops:" << fail_ops << std::endl;
+        std::cout << "inserts occurred:" << total_inserts_occurred << std::endl;
+        std::cout << "removes occurred:" << total_removes_occurred << std::endl;
+        std::cout << "succ ops:" << total_succ_ops << std::endl;
+        std::cout << "fail ops:" << total_fail_ops << std::endl;
 
         std::cout << "inserted: " << std::endl;
         for (auto& key: inserted) { std::cout << key << std::endl; }
@@ -95,13 +95,13 @@ public:
         for (auto& key: failed_remove) { std::cout << key << std::endl; }
     }
 
-    int getSucc_ops() const { return succ_ops; }
+    int getSucc_ops() const { return total_succ_ops; }
 
-    int getFail_ops() const { return fail_ops; }
+    int getFail_ops() const { return total_fail_ops; }
 
-    int getInserts_occurred() const { return inserts_occurred; }
+    int getInserts_occurred() const { return total_inserts_occurred; }
 
-    int getRemoves_occurred() const { return removes_occurred; }
+    int getRemoves_occurred() const { return total_removes_occurred; }
 
 private:
     const std::vector<Task>& tasks;
@@ -112,14 +112,14 @@ private:
     const int ops_per_transc;
     RecordMgr<size_t, size_t> recordMgr;
 
-    int ops_in_tx;
-    int inserts_occurred_in_tx;
-    int removes_occurred_in_tx;
+    int ops_in_tx = 0;
+    int inserts_occurred_in_tx = 0;
+    int removes_occurred_in_tx = 0;
 
-    int succ_ops;
-    int fail_ops;
-    int inserts_occurred;
-    int removes_occurred;
+    int total_succ_ops = 0;
+    int total_fail_ops = 0;
+    int total_inserts_occurred = 0;
+    int total_removes_occurred = 0;
 
     std::vector<size_t> inserted_in_tx; //for debug
     std::vector<size_t> removed_in_tx;
@@ -130,9 +130,9 @@ private:
 
     void update_counters_success_tx()
     {
-        inserts_occurred += inserts_occurred_in_tx;
-        removes_occurred += removes_occurred_in_tx;
-        succ_ops += ops_in_tx;
+        total_inserts_occurred += inserts_occurred_in_tx;
+        total_removes_occurred += removes_occurred_in_tx;
+        total_succ_ops += ops_in_tx;
 
         inserted.push_back(333);
         removed.push_back(333);
