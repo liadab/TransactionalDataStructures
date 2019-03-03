@@ -30,7 +30,7 @@ struct Task
     size_t val;
 };
 
-static const int N_INIT_LIST = 1000;
+static const int N_INIT_LIST = 10;
 
 class Worker
 {
@@ -155,7 +155,7 @@ private:
                 }
                 else
                 {
-                    write_to_log_file("remove " + std::to_string(task.key) +  "didn't occur");
+                    write_to_log_file("remove " + std::to_string(task.key) + " didn't occur");
                 }
                 break;
             case TaskType::CONTAINS:
