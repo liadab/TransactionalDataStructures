@@ -1,0 +1,140 @@
+%% LyX 2.2.3 created this file.  For more info, see http://www.lyx.org/.
+%% Do not edit unless you really know what you are doing.
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\setcounter{secnumdepth}{2}
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+\makeatletter
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% User specified LaTeX commands.
+%%AGT class -- Feldman -- TAU -- Spring 2018 %%
+
+
+    \textwidth=6in
+    \oddsidemargin=0.25in
+    \evensidemargin=0.25in
+    \topmargin=-0.1in
+    \footskip=0.8in
+    \parindent=0.0cm
+    \parskip=0.3cm
+    \textheight=8.00in
+
+
+    \sloppy
+
+    \DeclareMathOperator*{\argmax}{argmax}
+    \DeclareMathOperator*{\argmin}{argmin}
+
+\makeatother
+
+\begin{document}
+\setlength{\oddsidemargin}{.25in} \setlength{\evensidemargin}{.25in}
+\setlength{\textwidth}{6in} \setlength{\topmargin}{-0.4in} \setlength{\textheight}{8.5in}
+
+\global\long\def\handout#1#2#3#4{ \global\long\global\long\def\thepage{#1-\arabic{page}}
+\noindent\begin{center} \framebox{ \vbox{ \hbox to 6.35in { {\bf Advanced Topics in Multi-Core Architecture and Software Systems} \hfill#1 } \vspace{4mm} \hbox to 5.78in { {\Large\hfill#4 \hfill} } \vspace{2mm} \hbox to 6.35in { {\it #2 \hfill#3} } } } \end{center} \vspace*{4mm} }
+
+\global\long\def\finalProjTitle#1#2#3#4{\handout{#1}{Lecturer: #2}{Names: #3}{#4}}
+
+\newtheorem{theorem}{Theorem} \newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma} \newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition} \newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim} \newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption} \newtheorem{example}{Example}
+
+\global\long\def\qed{\rule{7pt}{7pt}}
+
+\newenvironment{proof}{\noindent{\bf Proof:}\hspace*{1em}}{\qed\bigskip}
+\newenvironment{proof-sketch}{\noindent{\bf Sketch of Proof:}\hspace*{1em}}{\qed\bigskip}
+\newenvironment{proof-idea}{\noindent{\bf Proof Idea:}\hspace*{1em}}{\qed\bigskip}
+\newenvironment{proof-of-lemma}[1]{\noindent{\bf Proof of Lemma #1:}\hspace*{1em}}{\qed\bigskip}
+\newenvironment{proof-attempt}{\noindent{\bf Proof Attempt:}\hspace*{1em}}{\qed\bigskip}
+\newenvironment{proofof}[1]{\noindent{\bf Proof}
+    of #1:\hspace*{1em}}{\qed\bigskip} \newenvironment{remark}{\noindent{\bf Remark}\hspace*{1em}}{\bigskip}
+
+%%%%%%%%%% My additions
+\global\long\def\fakebold#1{\ThisStyle{\ooalign{$\SavedStyle#1$\cr%
+\kern -\bshft$\SavedStyle#1$\cr%
+\kern \bshft$\SavedStyle#1$}}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%Michal%% ==> Change the lecture number, lecture date, and Scribe name
+\finalProjTitle{March 17, 2019}{Dr. Adam Morrison}{Liad Aben Tzur, Sapir
+Freizeit and Almog Freizeit}{Transactional Data Structures}
+
+%%Michal%%  Name the first section.  You can then use more sections (and, if needed, subsections)
+\begin{abstract}
+The idea of transactional data structures is to enable performing complex atomic transactions. It is widely used in many software and algorithms which use parallelism. Usually these kind of data structures are performance oriented and therefore a high-performance implementation for it is a novel cause.
+There exists a paper trying to address this point (Transactional Data Structure Libraries (TDSL) - http://webee.technion.ac.il/ ~idish/ftp/TransactionalLibrariesPLDI16.pdf), yet for now only a java implementation exists for it (TODO: add link), which is buggy and use GC which affects performance. Therefore, our main goal in this project was to implement a C++ version of it, using memory reclamation. By doing so we hoped to achieve better results.
+\end{abstract}
+
+\section{Transactional Data Structures - TDS}
+A transactional data structure is a data structure with its native operations (such as add or remove in a list and enqueue in a queue), plus two special operations: \textit{TXBegin} and \textit{TXCommit}. The library guarantees atomicity for each group of operations executed in between a TXBegin and a TXCommit (a \textbf{transaction}) – meaning that either they succeed together, or they will all fail (no partial results are visible for any other thread). \\
+Our implementation for the library is highly based on the paper [1] (TODO – add link). In this paper, the method offered for implementation is to make each thread have its own read-set and write-set which it updates inside a transaction. At the end of the transaction, the thread acquires locks of all the elements in its read/write sets and make sure it is safe to update all of them. “Safe” is defined via a \textit{global version clock (GVC)}, where node is safe to be changed if the GVC observed at the insertion of this node to the write/read sets is equal to the GVC observed after acquiring its lock. Only if all the nodes in the set are safe to be changed, the transaction succeeded. Otherwise, the transaction fails.\\
+In order to minimize the contention between different threads, the library maintains an Index. The index is basically a concurrent skip-list, which is always updated only by a successful transaction. When finding a node in the list, one should go and search for it in the index. The index guarantee is to return a node which key is less than yours, and all the requested thread remains to do is to walk from this node forward, which spreads the threads along the list and minimizes collisions.
+
+\section{The Java Implementation}
+
+\section{Our C++ Implementation}
+A Github repostitory is available here - https://github.com/liadab/TransactionalDataStructures (TODO - link)
+
+\subsection{Changes}
+When implementing the library in C++ we made some changes to the original implementation in Java which we based on:
+
+\subsubsection{Index}
+The index is highly lean on the Java implementation yet have some changes. In order to fully understand the changes, lets discuss shortly about the index’s design. \\
+As mentioned before, the index is basically a skip list. Therefore, it has several different levels, each level starts with a special node which is the head of the that level’s list. Each index node has a pointer to the next node in its layer, and a pointer downwards to the appropriate node on level lower (at the bottom layer this pointer is NULL). Each index node points also to the real Linked List Node, where nodes in different levels corresponding to the same LL-node. \\
+When a new node is added to the index, after its level is chosen randomly, all of its index nodes at different levels of the skip list is created, pointed to each other in the “down” pointer. Therefore, for correctness, one should always insert the new nodes from bottom level upwards, so that nodes in the index will always point to another node which is in the index as well. Yet for some reason the Java implementation made all the nodes in the index, including the head nodes, point only downwards, so the insertion is performed from top level downwards as well. This is our first change: we made only the heads a double-linked-list, meaning that each head has both a pointer downwards and upwards to the lower and higher levels respectively. Doing so made insertion from bottom up more elegant yet added some subtle pointes we had to treat carefully. \\
+Another addition to our index is a function called \textit{“findInsertionPoints”}, which given a node returns all the insertion points for it in all the different levels (aka two vectors corresponding to the previous and next node in each level). In that way the contention between different threads is minimized at insertion as well, other than only at searching. \\
+
+\subsubsection{Templates}
+
+Each of our node is a template class, which is templated upon both its key and its value. This method enables flexibility when using our library yet remains the implementation neat and elegant. \\
+The only demand from the keys is to act like numbers, in the manner that they have to support the “+”, “-“ operations and the std::numeric_limit function.
+
+\subsubsection{LNodeWrapper}
+
+One of our main goals at the project was to implement the library in C++ without neglecting memory reclamation in order to support large data sets. We wanted to compare different methods of memory reclamation, as well as a leaking algorithm. Therefore, we came up with the \textit{LNodeWrapper} design. The wrapper enables memory management to be hidden from the user and to be managed fully by the wrapper. \\
+In that way we could easily test and compare different memory reclamation models, with as minimum changes as possible, and in a short amount of time.
+
+\subsubsection{Multiple Executables}
+
+In order to compare the different memory reclamation approaches, we created many different executables, one for each method. The comparison was made by a different python script which only had to run the different executables and measure the results. \\
+Therefore it is easy for a user to choose which model he prefer to use when using our library, depends if he cares more about efficiency or perhaps he prefer to not approve any memory leak, as small as it may be.
+
+
+\subsection{Non-Leaking Algorithm}
+
+\subsubsection{Using Shared Pointers}
+
+\subsubsection{Using DEBRA}
+
+TODO: write about it. \\
+When integrating the DEBRA library in our project we encountered a problem. In the current Index’s design, deleting a node is not a linearizable operation. \\
+In details, because each conceptual node may be referred by several different index's nodes (at different layers), the design is that each thread encountered a deleted node (one of which its value is set to NULL), unlinks it from the list at the current level it was at. This method of deletion is doing a great job in improving performance, yet it makes it impossible to cooperate with DEBRA. The reason is that DEBRA has to know when is it safe to remove the node, aka when it is not accessible by any thread. Due to the fact that many different threads can erase the  - TODO: fix it
+
+\section{Testing System}
+Write about GTest and thread runner
+
+\section{Measurements}
+Our main: the java + the cpp. The python. How it checks everything. How
+XProfiler.
+Add pictures!
+
+\section{Conclusions}
+
+\subsection{Measurements Based}
+
+\subsection{Profiling Based}
+
+\section{Future Work}
+\begin{enumerate}
+    \item Add template wrapper for all of our structs (INdexNode, Qnode,…)
+\end{enumerate}
+
+
+ \bibliographystyle{plain}
+\bibliography{bibfile}
+
+\end{document}
