@@ -7,6 +7,7 @@
 #include "utils.h"
 #include "LNode.h"
 #include "LNodeWrapper.h"
+#include "log_file_helper.h"
 
 template <typename key_t, typename val_t>
 class Index {

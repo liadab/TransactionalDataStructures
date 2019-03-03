@@ -23,7 +23,8 @@ static thread_local std::ofstream log_file(get_file_name(), std::ios_base::out |
 
 static void write_to_log_file(const std::string& str)
 {
-    log_file << str;
+    std::time_t now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    log_file << now << " : " << str << std::endl;
 }
 
 static void restart_log_file()

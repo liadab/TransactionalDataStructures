@@ -581,14 +581,14 @@ public:
         return res;
     }
 
-    uint64_t get_size()
+    uint64_t print_list()
     {
         std::cout << "List at end:" << std::endl;
         auto cur = head;
         uint64_t res = 0;
         while(!cur.is_null()) {
             res ++;
-            std::cout << cur->m_key << std::endl;
+            write_to_log_file(std::to_string(cur->m_key));
             cur = cur->m_next;
         }
         return res;

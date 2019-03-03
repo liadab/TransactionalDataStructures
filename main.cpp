@@ -56,52 +56,39 @@ public:
 
     void work()
     {
-        write_to_log_file("hello");
-
-        int ops_in_tx = 0;
-        int inserts_occurred_in_tx = 0;
-        int removes_occurred_in_tx = 0;
-
         for (unsigned int index_task = tasks_index_begin; index_task < tasks_index_end; index_task++) {
             try {
                 if (ops_in_tx == 0)
                 {
+                    write_to_log_file("TX_BEGIN");
                     tx->TXbegin();
                 }
                 ops_in_tx++;
-                commit_task_and_update_counters(index_task, inserts_occurred_in_tx, removes_occurred_in_tx);
+                commit_task_and_update_counters(index_task);
 
                 if (ops_in_tx == ops_per_transc || index_task == tasks_index_end - 1)
                 {
                     tx->TXend<size_t, size_t>(recordMgr);
 
-                    inserts_occurred += inserts_occurred_in_tx;
-                    removes_occurred += removes_occurred_in_tx;
-                    succ_ops += ops_in_tx;
-
-                    ops_in_tx = 0;
-                    inserts_occurred_in_tx = 0;
-                    removes_occurred_in_tx = 0;
+                    write_to_log_file("TX SUCCEED");
+                    update_counters_success_tx();
                 }
             }
             catch(TxAbortException& e)
             {
-                fail_ops += ops_in_tx;
-
-                ops_in_tx = 0;
-                inserts_occurred_in_tx = 0;
-                removes_occurred_in_tx = 0;
+                write_to_log_file("TX FAILED");
+                update_counters_fail_tx();
             }
         }
     }
 
-    int getSucc_ops() const { return succ_ops; }
+    int getSucc_ops() const { return total_succ_ops; }
 
-    int getFail_ops() const { return fail_ops; }
+    int getFail_ops() const { return total_fail_ops; }
 
-    int getInserts_occurred() const { return inserts_occurred; }
+    int getInserts_occurred() const { return total_inserts_occurred; }
 
-    int getRemoves_occurred() const { return removes_occurred; }
+    int getRemoves_occurred() const { return total_removes_occurred; }
 
 private:
     const std::vector<Task>& tasks;
@@ -112,14 +99,39 @@ private:
     const int ops_per_transc;
     RecordMgr<size_t, size_t> recordMgr;
 
-    int succ_ops = 0;
-    int fail_ops = 0;
-    int inserts_occurred = 0;
-    int removes_occurred = 0;
+    int total_succ_ops = 0;
+    int total_fail_ops = 0;
+    int total_inserts_occurred = 0;
+    int total_removes_occurred = 0;
 
-    void commit_task_and_update_counters(int index_task,
-                                         int &inserts_occurred_in_transc,
-                                         int &removes_occurred_in_transc)
+    int ops_in_tx = 0;
+    int inserts_occurred_in_tx = 0;
+    int removes_occurred_in_tx = 0;
+
+    void update_counters_success_tx()
+    {
+        total_inserts_occurred += inserts_occurred_in_tx;
+        total_removes_occurred += removes_occurred_in_tx;
+        total_succ_ops += ops_in_tx;
+
+        restart_tx_counter();
+    }
+
+    void update_counters_fail_tx()
+    {
+        total_fail_ops += ops_in_tx;
+
+        restart_tx_counter();
+    }
+
+    void restart_tx_counter()
+    {
+        ops_in_tx = 0;
+        inserts_occurred_in_tx = 0;
+        removes_occurred_in_tx = 0;
+    }
+
+    void commit_task_and_update_counters(int index_task)
     {
         Task task = tasks.at(index_task);
         switch (task.task_type)
@@ -127,13 +139,23 @@ private:
             case TaskType::INSERT:
                 if (LL.put(task.key, task.val, recordMgr) == NULLOPT)
                 {
-                    inserts_occurred_in_transc++;
+                    inserts_occurred_in_tx++;
+                    write_to_log_file("insert " + std::to_string(task.key) + " occurred");
+                }
+                else
+                {
+                    write_to_log_file("insert " + std::to_string(task.key) + "didn't occur");
                 }
                 break;
             case TaskType::REMOVE:
                 if (!(LL.remove(task.key, recordMgr) == NULLOPT))
                 {
-                    removes_occurred_in_transc++;
+                    removes_occurred_in_tx++;
+                    write_to_log_file("remove " + std::to_string(task.key) + " occurred");
+                }
+                else
+                {
+                    write_to_log_file("remove " + std::to_string(task.key) + "didn't occur");
                 }
                 break;
             case TaskType::CONTAINS:
@@ -310,5 +332,6 @@ int main(int argc, char *argv[]) {
     std::cout << "DONE" << std::endl;
     std::chrono::duration<double> running_time_sec = end_time - start_time;
     print_results(workers, init_LL_size, n_threads, running_time_sec);
+
     return 0;
 }
