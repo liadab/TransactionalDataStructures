@@ -139,7 +139,7 @@ public:
                 return false;
             } // node is exactly being deleted, abort
             for (; ; ) { // continously try to insert in level
-                std::tie(finish, prev, next) = walkLevel(head, new_node->m_node);
+                std::tie(finish, prev, next) = walkLevel(head, new_node->m_node->m_key);
                 if (finish)
                     break;
             }
@@ -162,7 +162,7 @@ public:
         int insertion_level = 0;
         index_node_vec prevs;
         index_node_vec nexts;
-        findInsertionPoints(node_to_add, prevs, nexts);
+        findInsertionPoints(node_to_add->m_key, prevs, nexts);
         index_node_vec idxs;
         auto size = prevs.size();
         auto level = createNewIndexNode(node_to_add, idxs, size);
@@ -207,18 +207,15 @@ public:
         if (node.is_null()) {
             throw std::invalid_argument("NULL pointer node was given to Index::remove");
         }
-        findPredecessor(node); // clean index
+        findPredecessor(node->m_key); // clean index
         if (!m_head_top->m_right) {
             tryReduceLevel();
         }
     }
 
-    node_t getPred(node_t node) {
-        if (node.is_null()) {
-            throw std::invalid_argument("NULL pointer node was given to Index::getPred");
-        }
+    node_t getPred(const key_t& key) {
         for (; ; ) {
-            node_t b = findPredecessor(node);
+            node_t b = findPredecessor(key);
             if (!b.is_deleted() && b->m_val) { // not deleted
                 return b;
             }
@@ -267,10 +264,10 @@ private:
      *
      * @return a predecessor of key
      */
-    node_t findPredecessor(node_t node_to_find) {
+    node_t findPredecessor(const key_t& key_to_find) {
         index_node_vec prevs;
         index_node_vec nexts;
-        findInsertionPoints(node_to_find, prevs, nexts);
+        findInsertionPoints(key_to_find, prevs, nexts);
         assert(prevs.size() >= 1 && "findPredecessor: findInsertionPoints didn't init prevs?!" );
         return prevs[0]->m_node;
     }
@@ -323,7 +320,7 @@ private:
      * @return a tuple: is the search was finished (or needs to restart), predecessor, predecessor's right
      * */
     std::tuple<bool, std::shared_ptr<IndexNode>, std::shared_ptr<IndexNode>> walkLevel
-            (std::shared_ptr<IndexNode> start, node_t node_to_add) {
+            (std::shared_ptr<IndexNode> start, const key_t& key_to_add) {
         // TODO: change it to not return tuple
         if (!start)
             throw std::invalid_argument("NULL pointer head was given to Index::walkOnLevel");
@@ -332,7 +329,7 @@ private:
         while (r) {
             node_t n = r->m_node;
             // compare before deletion check avoids needing recheck
-            bool c = (node_to_add->m_key > n->m_key);
+            bool c = (key_to_add > n->m_key);
             if (n.is_deleted() || !n->m_val) { // need to unlink deleted node
                 if (!q->unlink(r)) { // need to restart walk..
                     return std::make_tuple(false, std::shared_ptr<IndexNode>(), std::shared_ptr<IndexNode>());
@@ -367,7 +364,7 @@ private:
         return level;
     }
 
-    bool findInsertionPoints(node_t node_to_find, index_node_vec& prevs, index_node_vec& nexts){
+    bool findInsertionPoints(const key_t& key_to_find, index_node_vec& prevs, index_node_vec& nexts){
         while (true) {
             prevs.clear();
             nexts.clear();
@@ -386,7 +383,7 @@ private:
                     break;
                 }
                 for (;;) {
-                    std::tie(finish, prev, next) = walkLevel(curr, node_to_find);
+                    std::tie(finish, prev, next) = walkLevel(curr, key_to_find);
                     if (finish) break;
                     curr = level_head; // TODO: unefficient?!
                 }
