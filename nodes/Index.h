@@ -169,6 +169,7 @@ public:
         auto level = createNewIndexNode(node_to_add, idxs, size);
         while (head && head->m_level < level + 1 && head->m_level < size) {
             auto curr_level = head->m_level;
+            assert(curr_level < idxs.size() && curr_level < size && "vectors out-of-bounds detected");
             if (!insert_in_level(idxs[curr_level], prevs[curr_level], nexts[curr_level], head)) {
                 // the node is exactly being deleted
                 return;
@@ -190,6 +191,7 @@ public:
         if (old_level < level) {
             // try to grow - as before only by one level at a time!
             node_t old_base = head->m_node;
+            assert(old_level + 1 < idxs.size() && "vectors out-of-bounds detected 2");
             auto newh = std::make_shared<HeadIndex>(old_base, head, idxs[old_level + 1], old_level + 1);
             if (casHead(head, newh, true)) {
                 head = newh;
