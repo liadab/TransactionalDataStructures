@@ -28,7 +28,7 @@ static void write_to_log_file(const std::string& str)
 {
     log_file << std::setfill('0') << std::setw(13) << std::clock() << " | "
     << "\\033[1;" << color << "m" << thread_id  << " : "
-    << str << "t\\033[0m\\" << std::endl;
+    << str << "t\\033[0m" << std::endl;
 }
 
 static void restart_log_file()
