@@ -17,13 +17,41 @@ TEST(IndexBasic, putAndRemoveMulti) {
     std::cout << "before remove" << std::endl;
     std::cout << ind << std::endl;
 
-    for (size_t i = 0; i < 32; i++) {
+    for (size_t i = 0; i < 2; i++) {
         auto n = nodes[i];
         n->m_val = NULLOPT;
         ind.remove(n);
     }
     std::cout << "after remove" << std::endl;
     std::cout << ind << std::endl;
+}
+
+TEST(IndexBasic, indexTestFunc) {
+    using node_t = LNodeWrapper<size_t,size_t>;
+    auto global_record_mgr = RecordMgr<size_t, size_t>::make_record_mgr(1);
+    RecordMgr<size_t, size_t> record_mgr(global_record_mgr, 0);
+    auto n = record_mgr.get_new_node(std::numeric_limits<size_t>::min(), std::numeric_limits<size_t>::min());
+    Index<size_t, size_t> ind(n);
+    std::vector<node_t> nodes(50);
+    for (size_t i = 0; i < 32; i++) {
+        auto n = record_mgr.get_new_node(i+1,  i+1);
+        nodes[i] = n;
+        ind.add(n);
+    }
+
+    for (size_t i = 0; i < 15; i++) {
+        auto n = nodes[i];
+        n->m_val = NULLOPT;
+        ind.remove(n);
+    }
+
+    for (size_t i = 40; i < 50; i++) {
+        auto n = record_mgr.get_new_node(i+1,  i+1);
+        nodes[i] = n;
+        ind.add(n);
+    }
+
+    ind.test_index();
 }
 
 //TEST(IndexBasic, insertionPoint) {

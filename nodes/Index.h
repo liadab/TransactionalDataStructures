@@ -13,13 +13,18 @@ template <typename key_t, typename val_t>
 class Index {
 public:
     using node_t = LNodeWrapper<key_t,val_t>;
+    static constexpr bool DEBUG = true;
+    std::atomic<int> m_cnt;
+    std::atomic<key_t> m_sum;
 
     /**
      * Index initializer
      * @param head_node    assumed to be dummy node
      */
     Index(node_t head_node) :
-        m_head_bottom(std::make_shared<HeadIndex>(head_node, std::shared_ptr<HeadIndex>(), std::shared_ptr<IndexNode>(), 0))
+        m_head_bottom(std::make_shared<HeadIndex>(head_node, std::shared_ptr<HeadIndex>(), std::shared_ptr<IndexNode>(), 0)),
+        m_sum(0),
+        m_cnt(0)
     {
         m_head_top = m_head_bottom;
     }
@@ -129,6 +134,29 @@ public:
         return stream;
     }
 
+    std::tuple<key_t, int> index_sum() {
+        auto curr = m_head_bottom->m_right;
+        key_t sum = 0;
+        int cnt = 0;
+        while (curr) {
+            if (curr->m_node.is_deleted() || !curr->m_node->m_val)
+                write_to_log_file("deleted node at the end.. key: ");
+            sum += curr->m_node->m_key;
+            cnt += 1;
+            curr = curr->m_right;
+        }
+        return std::make_tuple(sum, cnt);
+    }
+
+    void test_index() {
+        key_t actual_sum;
+        int actual_cnt;
+        std::tie(actual_sum, actual_cnt) = index_sum();
+        write_to_log_file("Based on count: sum= " + std::to_string(actual_sum) + " cnt = " + std::to_string(actual_cnt));
+        write_to_log_file("Based on funcs calls: sum= " + std::to_string(m_sum) + " cnt = " + std::to_string(m_cnt));
+
+    }
+
     bool insert_in_level(std::shared_ptr<IndexNode> new_node, std::shared_ptr<IndexNode> prev,
             std::shared_ptr<IndexNode> next, std::shared_ptr<HeadIndex> head) {
         while (true) {
@@ -157,6 +185,10 @@ public:
         if (node_to_add.is_null())
             throw std::invalid_argument("NULL pointer node was given to Index::add");
 
+        if (DEBUG) {
+            m_cnt += 1;
+            m_sum += node_to_add->m_key;
+        }
 
         // find insertion points in the existing levels - from bottom up
         auto head = m_head_bottom;
@@ -198,6 +230,7 @@ public:
                 return;
             }
         } // else - maybe we lost some insertion level, not so bad..
+
     }
 
     /**
@@ -209,6 +242,11 @@ public:
     void remove(node_t node) {
         if (node.is_null()) {
             throw std::invalid_argument("NULL pointer node was given to Index::remove");
+        }
+
+        if (DEBUG) {
+            m_cnt -= 1;
+            m_sum += node->m_key;
         }
         findPredecessor(node); // clean index
         if (!m_head_top->m_right) {

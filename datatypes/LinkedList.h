@@ -591,6 +591,7 @@ public:
             cur = cur->m_next;
         }
         std::cout << "#elements in list: " << (res - 1) << std::endl;
+        index.test_index();
         return res;
     }
 };
