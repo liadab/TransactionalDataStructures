@@ -592,7 +592,7 @@ public:
         }
         std::cout << "#elements in list: " << (res - 1) << std::endl;
         index.test_index();
-        std::cout << "#INDEX STATE " << index << std::endl;
+        write_to_log_file("#INDEX STATE " << index);
         return res;
     }
 };
