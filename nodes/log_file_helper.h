@@ -25,7 +25,7 @@ static thread_local std::ofstream log_file(get_file_name(), std::ios_base::out |
 
 static void write_to_log_file(const std::string& str)
 {
-    log_file << std::setfill('0') << std::setw(20) << std::clock() << " | " << thread_id  << " : " << str << std::endl;
+    log_file << std::setfill('0') << std::setw(13) << std::clock() << " | " << thread_id  << " : " << str << std::endl;
 }
 
 static void restart_log_file()
