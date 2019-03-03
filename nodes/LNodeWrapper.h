@@ -132,7 +132,7 @@ public:
 
     //return the wrapped node and this wrapper is considered deleted
     LNode<key_t, val_t>* delete_wrapped_node() {
-        *deleted = true;
+//        *deleted = true;
         return m_node;
     }
 
