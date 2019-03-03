@@ -562,6 +562,17 @@ public:
         return NULLOPT;
     }
 
+    void deinit_list(const RecordMgr<key_t, val_t>& recordMgr) {
+        auto guard = recordMgr.getGuard();
+        auto prev = head;
+        auto cur = prev->m_next;
+        while(cur.is_not_null()) {
+            recordMgr.retire_node(prev);
+            prev = cur;
+            cur = prev->m_next;
+        }
+    }
+
     friend std::ostream& operator<< (std::ostream& stream, const LinkedList<key_t, val_t>& list) {
         auto cur = list.head;
         while(!cur.is_null()) {
@@ -570,6 +581,7 @@ public:
         }
         return stream;
     }
+
 
     key_t get_sum_key(const RecordMgr<key_t, val_t>& recordMgr) {
         auto cur = head;
