@@ -22,10 +22,13 @@ static std::string get_file_name()
 
 static thread_local std::thread::id thread_id = std::this_thread::get_id();
 static thread_local std::ofstream log_file(get_file_name(), std::ios_base::out | std::ios_base::app );
+static thread_local int color = (rand()%2 ? 30 : 90) + rand() % 7 + 1;
 
 static void write_to_log_file(const std::string& str)
 {
-    log_file << std::setfill('0') << std::setw(13) << std::clock() << " | " << thread_id  << " : " << str << std::endl;
+    log_file << std::setfill('0') << std::setw(13) << std::clock() << " | "
+    << "\\033[1;" << color << "m" << thread_id  << " : "
+    << str << "t\\033[0m\\" << std::endl;
 }
 
 static void restart_log_file()
