@@ -144,7 +144,7 @@ private:
                 }
                 else
                 {
-                    write_to_log_file("insert " + std::to_string(task.key) + "didn't occur");
+                    write_to_log_file("insert " + std::to_string(task.key) + " didn't occur");
                 }
                 break;
             case TaskType::REMOVE:
@@ -155,7 +155,7 @@ private:
                 }
                 else
                 {
-                    write_to_log_file("remove " + std::to_string(task.key) + "didn't occur");
+                    write_to_log_file("remove " + std::to_string(task.key) +  "didn't occur");
                 }
                 break;
             case TaskType::CONTAINS:
@@ -332,6 +332,6 @@ int main(int argc, char *argv[]) {
     std::cout << "DONE" << std::endl;
     std::chrono::duration<double> running_time_sec = end_time - start_time;
     print_results(workers, init_LL_size, n_threads, running_time_sec);
-
+    linked_list.print_list();
     return 0;
 }
