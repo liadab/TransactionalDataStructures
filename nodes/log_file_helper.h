@@ -29,7 +29,7 @@ static void write_to_log_file(const std::string& str)
 
 static void restart_log_file()
 {
-    system("rm -r ./logs/*");
+    int i = system("rm -r ./logs/*");
 }
 
 #endif //TRANSACTIONALDATASTRUCTURES_LOGFILEHELPER_H

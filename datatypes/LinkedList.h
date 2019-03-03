@@ -587,10 +587,10 @@ public:
         uint64_t res = 0;
         while(!cur.is_null()) {
             res ++;
-            write_to_log_file(std::to_string(cur->m_key));
+            write_to_log_file("in list: " + std::to_string(cur->m_key));
             cur = cur->m_next;
         }
-        std::cout << "List at end: " << (res - 1) << std::endl;
+        std::cout << "#elements in list: " << (res - 1) << std::endl;
         return res;
     }
 };
