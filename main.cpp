@@ -137,32 +137,33 @@ private:
         switch (task.task_type)
         {
             case TaskType::INSERT:
-                write_to_log_file("trying insert " + std::to_string(task.key));
+                write_to_log_file("insert " + std::to_string(task.key) + " -> begin");
                 if (LL.put(task.key, task.val, recordMgr) == NULLOPT)
                 {
                     inserts_occurred_in_tx++;
-                    write_to_log_file("insert " + std::to_string(task.key) + " occurred");
+                    write_to_log_file("insert " + std::to_string(task.key) + + " -> end (occurred)");
                 }
                 else
                 {
-                    write_to_log_file("insert " + std::to_string(task.key) + " didn't occur");
+                    write_to_log_file("insert " + std::to_string(task.key) + " -> end (didn't occur)");
                 }
                 break;
             case TaskType::REMOVE:
-                write_to_log_file("trying remove " + std::to_string(task.key));
+                write_to_log_file("remove " + std::to_string(task.key) + " -> begin");
                 if (!(LL.remove(task.key, recordMgr) == NULLOPT))
                 {
                     removes_occurred_in_tx++;
-                    write_to_log_file("remove " + std::to_string(task.key) + " occurred");
+                    write_to_log_file("remove " + std::to_string(task.key) + " -> end (occurred)");
                 }
                 else
                 {
-                    write_to_log_file("remove " + std::to_string(task.key) + " didn't occur");
+                    write_to_log_file("remove " + std::to_string(task.key) + " -> end (didn't occur)");
                 }
                 break;
             case TaskType::CONTAINS:
-                write_to_log_file("trying find " + std::to_string(task.key));
+                write_to_log_file("contains " + std::to_string(task.key) + " -> begin");
                 LL.containsKey(task.key, recordMgr);
+                write_to_log_file("contains " + std::to_string(task.key) + " -> end");
                 break;
         }
     }
@@ -269,10 +270,10 @@ void print_results(std::list<Worker>& workers, int linked_list_init_size, int n_
         total_ops_failed += fail_ops;
     }
 
-    std::cout << "\n////////\nToatl: " << std::endl;
+    std::cout << "\nTOTAL: " << std::endl;
     std::cout << "total ops succeed: " << total_ops_succeed << std::endl;
     std::cout << "total ops failed: " << total_ops_failed << std::endl;
-    std::cout << "total LL size: " << total_linked_list_size << std::endl;
+    std::cout << "total linked list size (by main): " << total_linked_list_size << std::endl;
 
     std::cout << "total running time in secs: " << running_time_sec.count() << std::endl;
 }
