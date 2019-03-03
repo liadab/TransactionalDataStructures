@@ -306,6 +306,7 @@ int main(int argc, char *argv[]) {
     std::cout << "DONE" << std::endl;
     std::chrono::duration<double> running_time_sec = end_time - start_time;
     print_results(workers, init_LL_size, n_threads, running_time_sec);
+    std::cout << "actual linked list size: " << linked_list.get_size() << std::endl;
     linked_list.deinit_list(record_mgr);
     return 0;
 }
