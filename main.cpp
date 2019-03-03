@@ -83,6 +83,7 @@ public:
             }
             catch(TxAbortException& e)
             {
+                tx->handle_abort<size_t, size_t>(recordMgr);
                 fail_ops += ops_in_tx;
 
                 ops_in_tx = 0;

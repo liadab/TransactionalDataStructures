@@ -256,6 +256,28 @@ public:
         }
 
         return true;
+    }
 
+    template <typename key_t, typename val_t>
+    void handle_abort(const RecordMgr<key_t, val_t>& recordMgr) {
+        auto& localStorage = get_local_storge<key_t, val_t>();
+        auto& local_transaction = get_local_transaction();
+
+        //remove the items we wanted to add
+        auto& indexMap = localStorage.indexAdd;
+        for (auto& list_and_node : indexMap) {
+            auto& list = list_and_node.first;
+            auto& nodes = list_and_node.second;
+            for (auto &node : nodes) {
+                recordMgr.retire_node(node);
+            }
+        }
+
+        localStorage.writeSet.clear();
+        localStorage.readSet.clear();
+        localStorage.indexAdd.clear();
+        localStorage.indexRemove.clear();
+        local_transaction.TX = false;
+        local_transaction.readOnly = true;
     }
 };
