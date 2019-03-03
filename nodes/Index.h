@@ -155,6 +155,7 @@ public:
         write_to_log_file("Based on count: sum= " + std::to_string(actual_sum) + " cnt = " + std::to_string(actual_cnt));
         write_to_log_file("Based on funcs calls: sum= " + std::to_string(m_sum) + " cnt = " + std::to_string(m_cnt));
 
+        write_to_log_file("INDEX STATE:" << this);
     }
 
     bool insert_in_level(std::shared_ptr<IndexNode> new_node, std::shared_ptr<IndexNode> prev,
