@@ -162,6 +162,12 @@ public:
         while (true) {
             bool finish;
             if (prev->link(next, new_node)) {
+                if (DEBUG) {
+                    if (head->m_level == 0) {
+                        m_cnt += 1;
+                        m_sum += new_node->m_node->m_key;
+                    }
+                }
                 return true;
             }
             if (new_node->m_node.is_deleted() || new_node->m_node->m_val) {
@@ -184,11 +190,6 @@ public:
         // node_to_add is always safe to use because it is guarded by our caller
         if (node_to_add.is_null())
             throw std::invalid_argument("NULL pointer node was given to Index::add");
-
-        if (DEBUG) {
-            m_cnt += 1;
-            m_sum += node_to_add->m_key;
-        }
 
         // find insertion points in the existing levels - from bottom up
         auto head = m_head_bottom;
@@ -244,10 +245,6 @@ public:
             throw std::invalid_argument("NULL pointer node was given to Index::remove");
         }
 
-        if (DEBUG) {
-            m_cnt -= 1;
-            m_sum -= node->m_key;
-        }
         findPredecessor(node); // clean index
         if (!m_head_top->m_right) {
             tryReduceLevel();
@@ -377,6 +374,11 @@ private:
             if (n.is_deleted() || !n->m_val) { // need to unlink deleted node
                 if (!q->unlink(r)) { // need to restart walk..
                     return std::make_tuple(false, std::shared_ptr<IndexNode>(), std::shared_ptr<IndexNode>());
+                } else if (DEBUG) {
+                    if (!r->m_down) { // level 0
+                        m_sum -= r->m_node->m_key;
+                        m_cnt -= 1;
+                    }
                 }
             } else if (c) {
                 q = r;
