@@ -246,7 +246,7 @@ public:
 
         if (DEBUG) {
             m_cnt -= 1;
-            m_sum += node->m_key;
+            m_sum -= node->m_key;
         }
         findPredecessor(node); // clean index
         if (!m_head_top->m_right) {
