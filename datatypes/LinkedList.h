@@ -590,7 +590,7 @@ public:
             write_to_log_file(std::to_string(cur->m_key));
             cur = cur->m_next;
         }
-        std::cout << "List at end: " << res << std::endl;
+        std::cout << "List at end: " << (res - 1) << std::endl;
         return res;
     }
 };

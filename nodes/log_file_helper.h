@@ -12,18 +12,19 @@
 
 static std::string get_file_name()
 {
-    std::thread::id thread_id = std::this_thread::get_id();
+    std::thread::id t_id = std::this_thread::get_id();
     std::stringstream file_name;
-    file_name << "logs/log_file_" << thread_id << ".txt";
+    file_name << "logs/log_file_" << t_id << ".txt";
 
     return file_name.str();
 }
 
+static thread_local std::thread::id thread_id = std::this_thread::get_id();
 static thread_local std::ofstream log_file(get_file_name(), std::ios_base::out | std::ios_base::app );
 
 static void write_to_log_file(const std::string& str)
 {
-    log_file << std::clock() << " : " << str << std::endl;
+    log_file << std::clock() << " | " << thread_id  << " : " << str << std::endl;
 }
 
 static void restart_log_file()

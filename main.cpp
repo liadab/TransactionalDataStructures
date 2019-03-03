@@ -137,6 +137,7 @@ private:
         switch (task.task_type)
         {
             case TaskType::INSERT:
+                write_to_log_file("trying insert " + std::to_string(task.key));
                 if (LL.put(task.key, task.val, recordMgr) == NULLOPT)
                 {
                     inserts_occurred_in_tx++;
@@ -148,6 +149,7 @@ private:
                 }
                 break;
             case TaskType::REMOVE:
+                write_to_log_file("trying remove " + std::to_string(task.key));
                 if (!(LL.remove(task.key, recordMgr) == NULLOPT))
                 {
                     removes_occurred_in_tx++;
@@ -159,6 +161,7 @@ private:
                 }
                 break;
             case TaskType::CONTAINS:
+                write_to_log_file("trying find " + std::to_string(task.key));
                 LL.containsKey(task.key, recordMgr);
                 break;
         }
@@ -298,6 +301,7 @@ int main(int argc, char *argv[]) {
 
     //init linked list:
     int init_LL_size = init_linked_list(linked_list, tx, record_mgr);
+    write_to_log_file("list init:");
     linked_list.print_list();
     //std::cout << "initial linked list size:" << init_LL_size << std::endl;
 
@@ -333,6 +337,7 @@ int main(int argc, char *argv[]) {
     std::cout << "DONE" << std::endl;
     std::chrono::duration<double> running_time_sec = end_time - start_time;
     print_results(workers, init_LL_size, n_threads, running_time_sec);
+    write_to_log_file("list end:");
     linked_list.print_list();
     return 0;
 }
