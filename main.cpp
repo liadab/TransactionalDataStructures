@@ -12,6 +12,7 @@
 #include "nodes/LNode.h"
 #include "nodes/LNodeWrapper.h"
 #include "datatypes/LinkedList.h"
+#include "nodes/log_file_helper.h"
 //#include "nodes/utils.h"
 //#include "nodes/Index.h"
 
@@ -55,6 +56,8 @@ public:
 
     void work()
     {
+        write_to_log_file("hello");
+
         int ops_in_tx = 0;
         int inserts_occurred_in_tx = 0;
         int removes_occurred_in_tx = 0;
@@ -250,6 +253,8 @@ void print_results(std::list<Worker>& workers, int linked_list_init_size, int n_
 }
 
 int main(int argc, char *argv[]) {
+    restart_log_file();
+
     //parameters:
     uint32_t n_threads = std::atoi(argv[1]);
     uint32_t n_tasks = std::atoi(argv[2]);

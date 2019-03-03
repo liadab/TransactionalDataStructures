@@ -8,7 +8,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread -std=gnu++0x -g")
 
 include_directories(common)
 
-add_executable(tds main.cpp nodes/LNode.h datatypes/dummyIndex.h nodes/utils.cpp TX.h optional.h nodes/QNode.h datatypes/Queue.h datatypes/LocalQueue.h nodes/record_mgr.h)
+add_executable(tds main.cpp nodes/LNode.h datatypes/dummyIndex.h nodes/utils.cpp TX.h optional.h nodes/QNode.h datatypes/Queue.h datatypes/LocalQueue.h nodes/record_mgr.h nodes/log_file_helper.h)
 #target_compile_definitions(tds -DSHARED_PTR)
 #add_compile_definitions(DEBRA)
 
