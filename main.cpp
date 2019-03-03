@@ -211,13 +211,13 @@ void print_tasks_vector(const std::vector<Task> tasks) //for debug
         switch (task.task_type)
         {
             case TaskType::INSERT:
-                std::cout << "INSERT " << task.key << " " << task.val << std::endl;
+                write_to_log_file("INSERT " +  std::to_string(task.key));
                 break;
             case TaskType::REMOVE:
-                std::cout << "REMOVE " << task.key << " " << task.val << std::endl;
+                write_to_log_file("REMOVE " +  std::to_string(task.key));
                 break;
             case TaskType::CONTAINS:
-                std::cout << "CONTAINS " << task.key << " " << task.val << std::endl;
+                write_to_log_file("CONTAIN " +  std::to_string(task.key));
                 break;
         }
     }
@@ -289,7 +289,7 @@ int main(int argc, char *argv[]) {
     //create random tasks:
     std::vector<Task> tasks;
     fill_tasks_vector(tasks, n_tasks, x_of_100_inserts, x_of_100_removes);
-    //print_tasks_vector(tasks); //for debug
+    print_tasks_vector(tasks); //for debug
 
     //create linked list:
     std::shared_ptr<TX> tx = std::make_shared<TX>();
