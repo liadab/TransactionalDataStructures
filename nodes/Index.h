@@ -13,7 +13,7 @@ template <typename key_t, typename val_t>
 class Index {
 public:
     using node_t = LNodeWrapper<key_t,val_t>;
-    static constexpr bool DEBUG = true;
+    static constexpr bool DEBUG = false;
     std::atomic<int> m_cnt;
     std::atomic<key_t> m_sum;
 
@@ -149,14 +149,18 @@ public:
     }
 
     void test_index() {
-        key_t actual_sum;
-        int actual_cnt;
-        std::tie(actual_sum, actual_cnt) = index_sum();
-        write_to_log_file("Based on count: sum= " + std::to_string(actual_sum) + " cnt = " + std::to_string(actual_cnt));
-        write_to_log_file("Based on funcs calls: sum= " + std::to_string(m_sum) + " cnt = " + std::to_string(m_cnt));
-        std::stringstream buffer;
-        buffer << *this << std::endl;
-        write_to_log_file(buffer.str());
+        if (DEBUG) {
+            key_t actual_sum;
+            int actual_cnt;
+            std::tie(actual_sum, actual_cnt) = index_sum();
+            write_to_log_file(
+                    "Based on count: sum= " + std::to_string(actual_sum) + " cnt = " + std::to_string(actual_cnt));
+            write_to_log_file(
+                    "Based on funcs calls: sum= " + std::to_string(m_sum) + " cnt = " + std::to_string(m_cnt));
+            std::stringstream buffer;
+            buffer << *this << std::endl;
+            write_to_log_file(buffer.str());
+        }
     }
 
     bool insert_in_level(std::shared_ptr<IndexNode> new_node, std::shared_ptr<IndexNode> prev,
