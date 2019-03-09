@@ -219,7 +219,7 @@ public class Main {
 		int total_ops_succeed = 0;
 		int total_ops_failed = 0;
 
-		for (int i = 0; i < n_threads; i)
+		for (int i = 0; i < n_threads; i++)
 		{
 			int inserts_occurred = workers[i].getInserts_occurred();
 			int removes_occurred = workers[i].getRemoves_occurred();
