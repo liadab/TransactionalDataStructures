@@ -29,7 +29,7 @@ struct Task
     size_t val;
 };
 
-static const int N_INIT_LIST = 1000;
+static int N_INIT_LIST;
 
 class Worker
 {
@@ -217,10 +217,10 @@ int init_linked_list(LinkedList<size_t, size_t>& LL,
     return init_LL_size;
 }
 
-void print_results(std::list<Worker>& workers, int linked_list_init_size, int n_threads,
-                   std::chrono::duration<double>& running_time_sec)
+void print_results(std::list<Worker>& workers, int linked_list_init_size,
+                   std::chrono::duration<double>& running_time_sec, int actual_linked_list_size)
 {
-    int total_linked_list_size = linked_list_init_size;
+    int expected_total_linked_list_size = linked_list_init_size;
     int total_ops_succeed = 0;
     int total_ops_failed = 0;
     size_t count = 0;
@@ -236,17 +236,17 @@ void print_results(std::list<Worker>& workers, int linked_list_init_size, int n_
         std::cout << "succ ops:" << succ_ops << std::endl;
         std::cout << "fail ops:" << fail_ops << std::endl;
 
-        total_linked_list_size += inserts_occurred;
-        total_linked_list_size -= removes_occurred;
+        expected_total_linked_list_size += inserts_occurred;
+        expected_total_linked_list_size -= removes_occurred;
         total_ops_succeed += succ_ops;
         total_ops_failed += fail_ops;
     }
 
-    std::cout << "\n////////\nToatl: " << std::endl;
+    std::cout << "\nTotal: " << std::endl;
     std::cout << "total ops succeed: " << total_ops_succeed << std::endl;
     std::cout << "total ops failed: " << total_ops_failed << std::endl;
-    std::cout << "total LL size: " << total_linked_list_size << std::endl;
-
+    std::cout << "expected linked list size: " << expected_total_linked_list_size << std::endl;
+    std::cout << "actual linked list size: " << actual_linked_list_size << std::endl;
     std::cout << "total running time in secs: " << running_time_sec.count() << std::endl;
 }
 
@@ -261,6 +261,7 @@ int main(int argc, char *argv[]) {
     auto global_record_mgr = RecordMgr<size_t, size_t>::make_record_mgr(n_threads + 1);
 
     //create random tasks:
+    N_INIT_LIST = n_tasks / 10;
     std::vector<Task> tasks;
     fill_tasks_vector(tasks, n_tasks, x_of_100_inserts, x_of_100_removes);
     //print_tasks_vector(tasks); //for debug
@@ -302,11 +303,9 @@ int main(int argc, char *argv[]) {
     //measure time end:
     auto end_time = std::chrono::high_resolution_clock::now();
 
-    //done and print results:
-    std::cout << "DONE" << std::endl;
+    //print results:
     std::chrono::duration<double> running_time_sec = end_time - start_time;
-    print_results(workers, init_LL_size, n_threads, running_time_sec);
-    std::cout << "actual linked list size: " << linked_list.get_size() << std::endl;
+    print_results(workers, init_LL_size, running_time_sec, linked_list.get_size());
     linked_list.deinit_list(record_mgr);
     return 0;
 }

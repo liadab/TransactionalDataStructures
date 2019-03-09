@@ -593,7 +593,6 @@ public:
 
     uint64_t get_size()
     {
-        std::cout << "List at end:" << std::endl;
         auto cur = head;
         uint64_t res = 0;
         while(!cur.is_null()) {
