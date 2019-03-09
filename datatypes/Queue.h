@@ -128,6 +128,8 @@ public:
         q_map.put(this, l_queue);
     }
 
+
+
     void enqueueSingleton(val_t val) {
         std::shared_ptr<QNode<val_t>> node = std::make_shared<QNode<val_t>>(val);
         while (true) {
@@ -135,20 +137,102 @@ public:
                 if (m_tx->DEBUG_MODE_QUEUE) {
                     std::cout << "enqueueSingleton: val " << val << std::endl;
                 }
-                m_size++;
                 if (!m_tail) {
                     m_tail = node;
                     m_head = node;
                 } else {
                     m_tail.m_next = node;
+                    node.m_prev = m_tail;
                     m_tail = node;
                 }
+                m_size++;
                 setVersion(m_tx->getVersion());
                 setSingleton(true);
                 unlock();
                 return;
-            } else {
-                continue;
+            }
+        }
+    }
+
+    val_t dequeue() {
+        auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
+
+        // SINGLETON
+        if (!m_tx->get_local_transaction().TX) {
+            return dequeueSingleton();
+        }
+
+        // TX
+        if (m_tx->DEBUG_MODE_QUEUE) {
+            std::cout << "Queue dequeue - in TX" << std::endl;
+        }
+
+        validateTxSafe();
+
+        if (!tryLock()) {
+            // queue is locked by another thread - abort
+            m_tx->get_local_transaction().TX = false;
+            throw TxAbortException();
+        }
+
+        // now queue is locked
+        auto q_map = localStorage.queueMap;
+        auto l_queue = q_map.find(this);
+        if (!l_queue) {
+            l_queue = LocalQueue<val_t>(); // TODO: validate this is the right way
+        }
+        if (l_queue.m_first_deq) {
+            if (m_tx->DEBUG_MODE_QUEUE) {
+                std::cout << "Queue dequeue - first dequeue" << std::endl;
+            }
+            l_queue.m_first_deq = false;
+            l_queue.m_node_to_deq = m_head;
+        } else if (l_queue.m_node_to_deq) {
+            l_queue.m_node_to_deq = l_queue.m_node_to_deq.m_next;
+        }
+
+        if (l_queue.m_node_to_deq) { // dequeue from the queue
+            auto ret = l_queue.m_node_to_deq.m_val;
+            q_map.put(this, l_queue);
+            unlock(); // TODO: necessary?
+            return ret;
+        }
+
+        if (m_tx->DEBUG_MODE_QUEUE) {
+            std::cout << "Queue dequeue - nodeToDeq is null" << std::endl;
+        }
+
+        // there is no node in queue, then try the localQueue
+        q_map.put(this, l_queue);
+        unlock(); // TODO: necessary?
+        return l_queue.dequeue(); // can throw an exception
+    }
+
+    void put_local_queue_in_qmap(LocalQueue<val_t> l_queue) {
+
+    }
+
+    val_t dequeueSingleton() {
+        while (true) {
+            if (tryLock()) {
+                if (!m_head) {
+                    unlock();
+                    throw EmptyQueueException();
+                }
+
+                auto node = m_head;
+                auto ret = node.m_val;
+                m_head = m_head.m_next;
+                if (!m_head) {
+                    m_tail = NULLOPT;
+                } else {
+                    m_head.m_prev = NULLOPT;
+                }
+                m_size--;
+                setVersion(m_tx->getVersion());
+                setSingleton(true);
+                unlock();
+                return;
             }
         }
     }

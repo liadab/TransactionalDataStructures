@@ -7,8 +7,6 @@
 \usepackage{amssymb}
 
 \makeatletter
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% User specified LaTeX commands.
-%%AGT class -- Feldman -- TAU -- Spring 2018 %%
 
 
     \textwidth=6in
@@ -59,11 +57,11 @@
 \kern \bshft$\SavedStyle#1$}}}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%Michal%% ==> Change the lecture number, lecture date, and Scribe name
+
 \finalProjTitle{March 17, 2019}{Dr. Adam Morrison}{Liad Aben Tzur, Sapir
 Freizeit and Almog Freizeit}{Transactional Data Structures}
 
-%%Michal%%  Name the first section.  You can then use more sections (and, if needed, subsections)
+
 \begin{abstract}
 The idea of transactional data structures is to enable performing complex atomic transactions. It is widely used in many software and algorithms which use parallelism. Usually these kind of data structures are performance oriented and therefore a high-performance implementation for it is a novel cause.
 There exists a paper trying to address this point (Transactional Data Structure Libraries (TDSL) - http://webee.technion.ac.il/ ~idish/ftp/TransactionalLibrariesPLDI16.pdf), yet for now only a java implementation exists for it (TODO: add link), which is buggy and use GC which affects performance. Therefore, our main goal in this project was to implement a C++ version of it, using memory reclamation. By doing so we hoped to achieve better results.

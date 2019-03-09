@@ -35,7 +35,7 @@ public:
         }
     }
 
-    QNode<val_t> dequeue(){
+    val_t dequeue(){
         if (!m_head) {
             throw EmptyQueueException();
         }
