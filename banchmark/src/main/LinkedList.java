@@ -80,6 +80,18 @@ public class LinkedList {
         System.out.print("\n");
     }
 
+    // for debug only
+    public long getLinkedListSize() {
+        int size = 0;
+        LNode n = head;
+        while (n != null) {
+            size++;
+            n = n.next;
+        }
+        return size - 1;
+    }
+
+
     private LNode getPredSingleton(LNode n) {
         LNode pred = index.getPred(n);
         while (pred.isLockedOrDeleted()) {
