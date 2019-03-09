@@ -4,7 +4,7 @@ project(TransactionalDataStructures)
 set(CMAKE_CXX_C)
 
 set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread -std=gnu++0x -g")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread -std=gnu++0x -g -o3")
 
 include_directories(common)
 
@@ -22,4 +22,4 @@ set_property(TARGET tds_debra PROPERTY COMPILE_DEFINITIONS DEBRA)
 #target_link_libraries(tds jemalloc)
 
 
-add_subdirectory(test)
+#add_subdirectory(test)
