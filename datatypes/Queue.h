@@ -128,8 +128,6 @@ public:
         q_map.put(this, l_queue);
     }
 
-
-
     void enqueueSingleton(val_t val) {
         std::shared_ptr<QNode<val_t>> node = std::make_shared<QNode<val_t>>(val);
         while (true) {
@@ -208,13 +206,12 @@ public:
         return l_queue.dequeue(); // can throw an exception
     }
 
-    void put_local_queue_in_qmap(LocalQueue<val_t> l_queue) {
-
-    }
-
     val_t dequeueSingleton() {
         while (true) {
             if (tryLock()) {
+                if (m_tx->DEBUG_MODE_QUEUE) {
+                    std::cout << "dequeueSingleton:" << std::endl;
+                }
                 if (!m_head) {
                     unlock();
                     throw EmptyQueueException();
@@ -233,6 +230,63 @@ public:
                 setSingleton(true);
                 unlock();
                 return;
+            }
+        }
+    }
+
+    bool isEmpty() {
+        auto& localStorage = m_tx->get_local_storge<key_t, val_t>();
+
+        // SINGLETON
+        if (!m_tx->get_local_transaction().TX) {
+            return isEmptySingleton();
+        }
+
+        // TX
+        if (m_tx->DEBUG_MODE_QUEUE) {
+            std::cout << "Queue is_empty - in TX" << std::endl;
+        }
+
+        validateTxSafe();
+
+        if (!tryLock()) {
+            // queue is locked by another thread - abort
+            if (m_tx->DEBUG_MODE_QUEUE) {
+                std::cout << "Queue is_empty - couldn't lock" << std::endl;
+            }
+            m_tx->get_local_transaction().TX = false;
+            throw TxAbortException();
+        }
+
+        // now we have the lock
+        if (m_size > 0) {
+            unlock();
+            return false;
+        }
+
+        // check local queue
+        auto q_map = localStorage.queueMap;
+        auto l_queue = q_map.find(this);
+        if (!l_queue) {
+            l_queue = LocalQueue<val_t>(); // TODO: validate this is the right way
+        }
+        q_map.put(this, l_queue);
+        unlock(); // TODO: necessary?
+        return l_queue.isEmpty();
+
+    }
+
+    bool isEmptySingleton() {
+        while (true) {
+            if (tryLock()) {
+                if (m_tx->DEBUG_MODE_QUEUE) {
+                    std::cout << "is empty singleton" << std::endl;
+                }
+                auto ret = m_size;
+                setVersion(m_tx->getVersion());
+                setSingleton(true);
+                unlock();
+                return (ret <= 0);
             }
         }
     }
