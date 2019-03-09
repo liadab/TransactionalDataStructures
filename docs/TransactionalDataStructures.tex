@@ -241,15 +241,15 @@ we added is the Main file, that executes the senario described above.
 
 \subsection{Running and Output Examples}
 
-\subsubsection{Running Examples
+\subsubsection{Running Examples}
+
+We checked 4 implementations:
 \begin{align*}
-our\ non-leaking\ CPP & ./tds\ 2\ 1000\ 10\ 40\ 50\protect\\
-our\ leaking\ CPP & ./tds\_unsafe\ 2\ 1000\ 10\ 40\ 50\protect\\
-our\ using-debra\ CPP & ./tds\_debra\ 2\ 1000\ 10\ 40\ 50\protect\\
+our\ non-leaking\ CPP & ./tds\ 2\ 1000\ 10\ 40\ 50\\
+our\ leaking\ CPP & ./tds\_unsafe\ 2\ 1000\ 10\ 40\ 50\\
+our\ using-debra\ CPP & ./tds\_debra\ 2\ 1000\ 10\ 40\ 50\\
 JAVA\ implementation\ from\ the\ paper & ./run\ 2\ 1000\ 10\ 40\ 50
 \end{align*}
-}
-
 Here 2 is the number of threads that will run in parallel, 1000 is
 the total number of tasks (each thread will execute 500 tasks), 10
 is the amount of tasks per transaction, 40 is the percent of inserts

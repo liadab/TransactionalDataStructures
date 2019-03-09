@@ -1104,6 +1104,10 @@ Running and Output Examples
 
 \begin_layout Subsubsection
 Running Examples
+\end_layout
+
+\begin_layout Standard
+We checked 4 implementations:
 \begin_inset Formula 
 \begin{align*}
 our\ non-leaking\ CPP & ./tds\ 2\ 1000\ 10\ 40\ 50\\
@@ -1114,10 +1118,6 @@ JAVA\ implementation\ from\ the\ paper & ./run\ 2\ 1000\ 10\ 40\ 50
 
 \end_inset
 
-
-\end_layout
-
-\begin_layout Standard
 Here 2 is the number of threads that will run in parallel, 1000 is the total
  number of tasks (each thread will execute 500 tasks), 10 is the amount
  of tasks per transaction, 40 is the percent of inserts tasks, and 50 is
