@@ -219,14 +219,14 @@ public class Main {
 		int total_ops_succeed = 0;
 		int total_ops_failed = 0;
 
-		for (int i = 0; i < n_threads; ++i)
+		for (int i = 0; i < n_threads; i)
 		{
 			int inserts_occurred = workers[i].getInserts_occurred();
 			int removes_occurred = workers[i].getRemoves_occurred();
 			int succ_ops = workers[i].getSucc_ops();
 			int fail_ops = workers[i].getFail_ops();
 
-			 System.out.println("\nThread " + i);
+			 System.out.println("\nThread " + (i + 1));
 			 System.out.println("inserts occurred:" + inserts_occurred);
 			 System.out.println("removes occurred:" + removes_occurred);
 			 System.out.println("succ ops:" + succ_ops);
