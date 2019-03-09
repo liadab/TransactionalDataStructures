@@ -1,0 +1,1 @@
+/usr/bin/c++    -pthread -std=gnu++0x -g -o3    CMakeFiles/tds_debra.dir/main.cpp.o CMakeFiles/tds_debra.dir/nodes/utils.cpp.o  -o tds_debra -rdynamic 

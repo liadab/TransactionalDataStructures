@@ -1,0 +1,1 @@
+/usr/bin/c++    -pthread -std=gnu++0x -g -o3    CMakeFiles/tds_unsafe.dir/main.cpp.o CMakeFiles/tds_unsafe.dir/nodes/utils.cpp.o  -o tds_unsafe -rdynamic 

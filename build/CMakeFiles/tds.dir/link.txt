@@ -1,0 +1,1 @@
+/usr/bin/c++    -pthread -std=gnu++0x -g -o3    CMakeFiles/tds.dir/main.cpp.o CMakeFiles/tds.dir/nodes/utils.cpp.o  -o tds -rdynamic 

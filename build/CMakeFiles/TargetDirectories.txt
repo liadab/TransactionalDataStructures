@@ -1,0 +1,3 @@
+/a/home/cc/students/math/sapirf/CPP_proj_multi_proc/TransactionalDataStructures/build/CMakeFiles/tds.dir
+/a/home/cc/students/math/sapirf/CPP_proj_multi_proc/TransactionalDataStructures/build/CMakeFiles/tds_debra.dir
+/a/home/cc/students/math/sapirf/CPP_proj_multi_proc/TransactionalDataStructures/build/CMakeFiles/tds_unsafe.dir
