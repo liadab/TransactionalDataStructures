@@ -6,6 +6,7 @@
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{graphicx}
+\usepackage{hyperref}
 
 \makeatletter
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% User specified LaTeX commands.
@@ -71,12 +72,11 @@ complex atomic transactions. It is widely used in many software and
 algorithms which use parallelism. Usually these kind of data structures
 are performance oriented and therefore a high-performance implementation
 for it is a novel cause. There exists a paper trying to address this
-point (Transactional Data Structure Libraries (TDSL) - http://webee.technion.ac.il/
-~idish/ftp/TransactionalLibrariesPLDI16.pdf), yet for now only a
-java implementation exists for it (TODO: add link), which is buggy
+point \cite{TDSL}, yet for now only a
+java implementation exists for it (\url{https://github.com/HagarMeir/transactionLib}), which is buggy
 and use GC which affects performance. Therefore, our main goal in
 this project was to implement a C++ version of it, using memory reclamation.
-By doing so we hoped to achieve better results. 
+By doing so we hoped to achieve better results.
 \end{abstract}
 
 \section{Transactional Data Structures - TDS}
@@ -88,8 +88,7 @@ The library guarantees atomicity for each group of operations executed
 in between a TXBegin and a TXCommit (a \textbf{transaction}) – meaning
 that either they succeed together, or they will all fail (no partial
 results are visible for any other thread). \\
- Our implementation for the library is highly based on the paper {[}1{]}
-(TODO – add link). In this paper, the method offered for implementation
+ Our implementation for the library is highly based on the paper \cite{TDSL}. In this paper, the method offered for implementation
 is to make each thread have its own read-set and write-set which it
 updates inside a transaction. At the end of the transaction, the thread
 acquires locks of all the elements in its read/write sets and make
@@ -109,8 +108,7 @@ forward, which spreads the threads along the list and minimizes collisions.
 
 \section{Our Implementation}
 
-A Github repository is available here - https://github.com/liadab/TransactionalDataStructures
-(TODO - link)
+A Github repository is available here: \\ \url{https://github.com/liadab/TransactionalDataStructures}
 
 \subsection{Changes We Have Made}
 
@@ -216,8 +214,7 @@ While validating it we noticed one unexpected leakage: in the index, due to the 
 The only downsize to this memory reclamation method is that each time we copy a pointer, we need to do fetch and add, and each time we stop we need to do fetch and dec, which can become a bottleneck in large scales.
 
 \subsubsection{Using DEBRA}
-DEBRA (TODO: link - http:
-//www.cs.toronto.edu/~tabrown/debra/impl.htm) is a library which uses the concept that each time we want to access the memory, we declare, using the guard a filter of which memory we can access, Debra does this in O(1), then when we want to delete a node, we retire it, making it in a state of want to be deleted. \\
+DEBRA (\url{https://www.cs.toronto.edu/~tabrown/debra/impl.htm}) is a library which uses the concept that each time we want to access the memory, we declare, using the guard a filter of which memory we can access, Debra does this in O(1), then when we want to delete a node, we retire it, making it in a state of want to be deleted. \\
 When the application decides to retire a node, we must make sure manually that each new thread which started after the retire occurred (actually after the guard is out of scope) cant access the node that was retired.\\
 Using this assumption when a guard is getting out of context, if it was the last guard that started after that node retired occurred it can safely delete this node.\\
 Both guard ctr, dctr and node retire are in o(1) which is very efficient.
@@ -230,12 +227,12 @@ Debra downside is in order to use Debra properly the application must be aware t
 Unlike shared ptr which is plug and play.
 
 
-\section{Concurrent Testing System}
+\subsection{Concurrent Testing System}
 
-We tested our code using the GTEST unit testing library and made tests for interesting races that could occur. \\
-We also develop the \textit{Thread Runner} testing tool, which makes thread run partial logic, then logically freeze and then end the rest of the logic. \\
-Using this we made interesting tests like one thread is doing tractional put, then this thread freeze, then a singleton is doing get for the same key and should not find the node, and then main thread unfreeze and try to commit, after the commit the other thread is doing singleton get and this time succeed. \\
-That way we tested interesting cases and found some bugs in the java implementation we were based on.
+We tested our code using the GTEST unit testing library which enabled us an easy way to run complicated and diverse tests. Mainly, as for every concurrent library, we tried to detect the interesting races that could occur, and clarify our implementation correctness during those ones. \\
+A very helpful tool we developed was the \textit{Thread Runner} testing tool. This tool enables control a two threads flow, which enables us create the "race" on our own in order to test it. The idea is to makes a thread run a partial logic, then logically freeze it and enable another thread make another logic, and then end the rest of the original logic. \\
+An example for a test we created is making one thread do a transactional put, then freeze it, and another start another thread which do a singleton get for the same key (should not find the node). Then the first thread unfreeze and try to commit, after the commit the other thread is doing singleton get which this time succeed. \\
+Using this tool we tested interesting cases and found some bugs in the java implementation we were based on.
 
 \section{Tests and Measurements Environment}
 
@@ -374,8 +371,7 @@ to transaction abort, as we would expect.
 \item We can see that in terms of performance, the CPP implementation is
 doing better then the JAVA implementation, when running with more
 then \textasciitilde{}10 threads. It is important to mention that
-we suspected that maybe for some reason the JAVA implementation from
-(TODO: link) {[}1{]} is not running in parallel. To check this option, we added
+we suspected that maybe for some reason the JAVA implementation is not running in parallel. To check this option, we added
 print commands inside the workers code and made sure the messages
 were printed alternately. For that reason we believe the JAVA implementation
 does run in pararllel. Understanding the differences between the implementations
