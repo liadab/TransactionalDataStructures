@@ -1047,11 +1047,11 @@ Testing Environment
 \end_layout
 
 \begin_layout Subsection
-Our Running Senario
+Our Running Scenario
 \end_layout
 
 \begin_layout Standard
-We wrote a similar running senario for both the Java implementation mentioned
+We wrote a similar running scenario for both the Java implementation mentioned
  in [1], and our C++ implementations:
 \end_layout
 
@@ -1094,8 +1094,8 @@ We measure the running time only of step 4 - where the parallel work is
 \end_layout
 
 \begin_layout Enumerate
-We use the JAVA implementation from the articel as-is, the only thing we
- added is the Main file, that executes the senario described above.
+We use the JAVA implementation from the article as-is, the only thing we
+ added is the Main file, that executes the scenario described above.
 \end_layout
 
 \begin_layout Subsection
@@ -1142,19 +1142,19 @@ Output Example:
 \end_layout
 
 \begin_layout Subsubsection
-Output explenation
+Output explanation:
 \end_layout
 
 \begin_layout Standard
 At the beginning we print the initial size of the linked list.
  After the workers are done, for each thread we count the amount of inserts
- and removes occured, meaning inserts and removes that changed the data
+ and removes occurred, meaning inserts and removes that changed the data
  structure state.
- Also, we count the number of succesful operations and the number of failure
- opearations, where here a 'failure' means that the transaction aborted
- due to a change in the data structure.
+ Also, we count the number of successful operations and the number of failure
+ operations, where here a 'failure' means that the transaction aborted due
+ to a change in the data structure.
  At the end, we print a summary of the details.
- The output is equal for all the implementation vesrions.
+ The output is equal for all the implementation versions.
 \end_layout
 
 \begin_layout Subsection
@@ -1186,7 +1186,7 @@ To easily run all 4 implementations and compare them, we wrote a python
 \begin_inset Formula $amount\ runs$
 \end_inset
 
- times, and caclulates the avarage parameters among the 
+ times, and calculates the average parameters among the 
 \begin_inset Formula $amount\ runs$
 \end_inset
 
@@ -1217,7 +1217,7 @@ banchmark/src
 \end_inset
 
  in our git repository.
- An explenation of how to run the program can be found in banchmark/README_COMPI
+ An explanation of how to run the program can be found in banchmark/README_COMPI
 LATION.txt.
 \end_layout
 
@@ -1247,7 +1247,7 @@ banchmark
 \end_layout
 
 \begin_layout Enumerate
-All the CPP exectuables (tds, tds_unsafe, tds_debra) can be found under
+All the CPP executables (tds, tds_unsafe, tds_debra) can be found under
  
 \begin_inset Quotes eld
 \end_inset
@@ -1307,7 +1307,7 @@ Sometimes our CPP implementation crushes due to allocating issues.
  in some edged cases (as described in https://stackoverflow.com/questions/4217298
 8/c11-shared-pointer-thread-safety-is-broken).
  But, this bug happens rarely, and after running a bunch of tests we didn't
- find uncorrectness issues in our code.
+ find incorrectness issues in our code.
 \end_layout
 
 \begin_layout Section
@@ -1322,7 +1322,7 @@ The Results
 The results here present a running example of 10000 tasks, 10 tasks per
  transaction, and each measure was taken as the average case of 10 samples.
  Again, operations are considered as succeed if they were not aborted by
- the transaction mechanism (it is a normal behaviour).
+ the transaction mechanism (it is a normal behavior).
 \end_layout
 
 \begin_layout Subparagraph
@@ -1382,7 +1382,7 @@ Conclusions
 \begin_layout Enumerate
 We can see that there is not a big difference between the mixed case and
  the inserts case.
- This behaviour makes sense, because there is not a big difference between
+ This behavior makes sense, because there is not a big difference between
  the two operations in the aspect of the algorithm.
 \end_layout
 
@@ -1392,16 +1392,16 @@ on abort, as we would expect.
 \end_layout
 
 \begin_layout Enumerate
-We can see that in terms of perofrmence, the CPP implementation is doing
+We can see that in terms of performance, the CPP implementation is doing
  better then the JAVA implementation, when running with more then ~10 threads.
  It is important to mention that we suspected that maybe for some reason
  the JAVA implementation from [1] is not running in parallel.
  To check this option, we added print commands inside the workers code and
  made sure the messages were printed alternately.
- For that reason we believe the JAVA implementation does run in prarllel.
- Understanding the dieffrences between the implementations might be tricky,
+ For that reason we believe the JAVA implementation does run in pararllel.
+ Understanding the differences between the implementations might be tricky,
  because there are many aspects of differences between JAVA and CPP.
- But, since we see that our CPP implementation runs faster then the JAVA
+ But, since we see that our CPP implementation runs faster than the JAVA
  implementation from [1] only after using a few threads, and regardless
  to the caring of memory leak in the CPP code, we assume this gap is more
  attached with the general differences between JAVA and CPP and is not necessari
@@ -1413,8 +1413,8 @@ It seems that there are not dramatic differences between the CPP implementations
  Yet, the experiments above shows that in general, running in unsafe mode
  is faster then running in the non leaking mode, probably due to the clear
  overhead of ensuring the safetiness of the second.
- Whats is maybe more surprising, is that using debra is a bit slower then
- using the safe mode.
+ Maybe more surprising, is that using debra is a bit slower then using the
+ safe mode.
  Maybe this fact is related to general overhead of Debra implementation
  as it uses more complicated methods.
 \end_layout

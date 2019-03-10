@@ -210,9 +210,9 @@ Write about GTest and thread runner
 
 \section{Testing Environment}
 
-\subsection{Our Running Senario}
+\subsection{Our Running Scenario}
 
-We wrote a similar running senario for both the Java implementation
+We wrote a similar running scenario for both the Java implementation
 mentioned in {[}1{]}, and our C++ implementations:
 \begin{enumerate}
 \item First, we receive the parameters: amount of threads, amount of total
@@ -235,8 +235,8 @@ the pool.
 \begin{enumerate}
 \item We measure the running time only of step 4 - where the parallel work
 is done on the data structure.
-\item We use the JAVA implementation from the articel as-is, the only thing
-we added is the Main file, that executes the senario described above.
+\item We use the JAVA implementation from the article as-is, the only thing
+we added is the Main file, that executes the scenario described above.
 \end{enumerate}
 
 \subsection{Running and Output Examples}
@@ -260,16 +260,16 @@ Overall we programmed 3 executables: tds, tds\_debra and tds\_unsafe.
 
 \includegraphics{pasted1}
 
-\subsubsection{Output explenation}
+\subsubsection{Output explanation:}
 
 At the beginning we print the initial size of the linked list. After
 the workers are done, for each thread we count the amount of inserts
-and removes occured, meaning inserts and removes that changed the
-data structure state. Also, we count the number of succesful operations
-and the number of failure opearations, where here a 'failure' means
+and removes occurred, meaning inserts and removes that changed the
+data structure state. Also, we count the number of successful operations
+and the number of failure operations, where here a 'failure' means
 that the transaction aborted due to a change in the data structure.
 At the end, we print a summary of the details. The output is equal
-for all the implementation vesrions.
+for all the implementation versions.
 
 \subsection{Running all together - the Python script}
 
@@ -278,21 +278,21 @@ script named final\_proj\_exp.py (it runs with python version 3.4).
 The script gets as an input all the parameters displayed in 5.1.1,
 and also the parameters $max\ threads$ and $amount\ runs$. $\forall1\le i\le max\ threads:$
 the script runs each implementation with $i$ threads for $amount\ runs$
-times, and caclulates the avarage parameters among the $amount\ runs$
+times, and calculates the average parameters among the $amount\ runs$
 runs. In the end, the script creates a plot presenting the differences
 among the implementations (the plot is saved under the folder ``out'').
 
 \subsection{Technical details}
 \begin{enumerate}
 \item All the JAVA code can be found under ``banchmark/src'' in our git
-repository. An explenation of how to run the program can be found
+repository. An explanation of how to run the program can be found
 in banchmark/README\_COMPILATION.txt.
 \item The Python script can also be found under ``banchmark'' directory.
 Note: it is important to run the script from within the directory
 (so JAVA will be able to access its jarfile). The script arguments
 can be seen here:\\
  \includegraphics{\string"python args\string".eps}
-\item All the CPP exectuables (tds, tds\_unsafe, tds\_debra) can be found
+\item All the CPP executables (tds, tds\_unsafe, tds\_debra) can be found
 under ``build''. To compile the CPP program: from within ``build/''
 run ``cmake..'', and then: ``make -j''.
 \end{enumerate}
@@ -312,7 +312,7 @@ After trying to understand the problem, we found that, despite the
 assumption we based on when we wrote the code, CPP shared\_ptr's are
 not thread safe in some edged cases (as described in https://stackoverflow.com/questions/42172988/c11-shared-pointer-thread-safety-is-broken).
 But, this bug happens rarely, and after running a bunch of tests we
-didn't find uncorrectness issues in our code.
+didn't find incorrectness issues in our code.
 \end{enumerate}
 
 \section{Results and Conclusions}
@@ -322,7 +322,7 @@ didn't find uncorrectness issues in our code.
 The results here present a running example of 10000 tasks, 10 tasks
 per transaction, and each measure was taken as the average case of
 10 samples. Again, operations are considered as succeed if they were
-not aborted by the transaction mechanism (it is a normal behaviour).
+not aborted by the transaction mechanism (it is a normal behavior).
 
 \subparagraph{mixed case (50-50 percent of inserts and removes)\protect \\
 }
@@ -337,32 +337,32 @@ not aborted by the transaction mechanism (it is a normal behaviour).
 \subsection{Conclusions}
 \begin{enumerate}
 \item We can see that there is not a big difference between the mixed case
-and the inserts case. This behaviour makes sense, because there is
+and the inserts case. This behavior makes sense, because there is
 not a big difference between the two operations in the aspect of the
 algorithm.
 \item We see that when we run with more threads, more operations fail due
 to transaction abort, as we would expect.
-\item We can see that in terms of perofrmence, the CPP implementation is
+\item We can see that in terms of performance, the CPP implementation is
 doing better then the JAVA implementation, when running with more
 then \textasciitilde{}10 threads. It is important to mention that
 we suspected that maybe for some reason the JAVA implementation from
 {[}1{]} is not running in parallel. To check this option, we added
 print commands inside the workers code and made sure the messages
 were printed alternately. For that reason we believe the JAVA implementation
-does run in prarllel. Understanding the dieffrences between the implementations
+does run in pararllel. Understanding the differences between the implementations
 might be tricky, because there are many aspects of differences between
 JAVA and CPP. But, since we see that our CPP implementation runs faster
-then the JAVA implementation from {[}1{]} only after using a few threads,
+than the JAVA implementation from {[}1{]} only after using a few threads,
 and regardless to the caring of memory leak in the CPP code, we assume
 this gap is more attached with the general differences between JAVA
 and CPP and is not necessarily directly related to the memory cleaning.
 \item It seems that there are not dramatic differences between the CPP implementations.
 Yet, the experiments above shows that in general, running in unsafe
 mode is faster then running in the non leaking mode, probably due
-to the clear overhead of ensuring the safetiness of the second. Whats
-is maybe more surprising, is that using debra is a bit slower then
-using the safe mode. Maybe this fact is related to general overhead
-of Debra implementation as it uses more complicated methods.
+to the clear overhead of ensuring the safetiness of the second. Maybe
+more surprising, is that using debra is a bit slower then using the
+safe mode. Maybe this fact is related to general overhead of Debra
+implementation as it uses more complicated methods.
 \end{enumerate}
 
 \section{Future Work}
