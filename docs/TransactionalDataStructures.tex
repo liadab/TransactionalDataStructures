@@ -68,7 +68,7 @@ Tzur, Sapir Freizeit and Almog Freizeit}{Transactional Data Structures}
 %%Michal%%  Name the first section.  You can then use more sections (and, if needed, subsections)
 \begin{abstract}
 The idea of transactional data structures is to enable performing
-complex atomic transactions. It is widely used in many software and
+complex atomic transactions. It is widely used in many softwares and
 algorithms which use parallelism. Usually these kind of data structures
 are performance oriented and therefore a high-performance implementation
 for it is a novel cause. There exists a paper trying to address this
@@ -170,7 +170,7 @@ threads is minimized at insertion as well, other than only at searching.
 
 
 \subsubsection{Local Storage}
-In the java implementation there were a global singleton of local storage, since the java implementation didn’t have multitype support it was o, but in our c++ implementation we needed to be template, so we used the thread local syntax in c++. \\
+In the java implementation there were a global singleton of local storage, since the java implementation didn't have multitype support it was o, but in our C++ implementation we needed to be template, so we used the thread local syntax in C++. \\
 Thread local in a member function create a copy of the local object for each thread that calls it and that’s exactly what we want. \\
 Since the method that contains the local storage is template, we get a local storage for each different key and value we use. \\
 The only downside is that because we can't know on which types, we used the local storage we need to call txend on the types we used, so the code would commit the right types.
@@ -208,16 +208,16 @@ A detailed explanation of the both solutions follows:
 
 \subsubsection{Using Shared Pointers}
 We found that using refcount was the easiest way for implementing a working solution to the memory reclamation problem. \\
-The idea of shared ptr is that each pointer also has a refcount allocated on the heap, and that way the pointer can know if there are other pointers, which can access it, or if there are no other pointer which can access this pointer and we don’t need it. Therefore it can safetly determine when to delete this memory. \\
+The idea of shared ptr is that each pointer also has a refcount allocated on the heap, and that way the pointer can know if there are other pointers, which can access it, or if there are no other pointer which can access this pointer and we don’t need it. Therefore it can safely determine when to delete this memory. \\
 That way, using RAII, we could know that there indeed was no memory leakage.\\
-While validating it we noticed one unexpected leakage: in the index, due to the fact that we have nade the heades of all the different levels be a doubly-linked-list, there became a situation when two nodes had shared ptrs to each other, remained each other alive. We solved that by breaking these chains manually on the index destractor. \\
+While validating it we noticed one unexpected leakage: in the index, due to the fact that we have made the heads of all the different levels be a doubly-linked-list, there became a situation when two nodes had shared ptrs to each other, remained each other alive. We solved that by breaking these chains manually on the index destractor. \\
 The only downsize to this memory reclamation method is that each time we copy a pointer, we need to do fetch and add, and each time we stop we need to do fetch and dec, which can become a bottleneck in large scales.
 
 \subsubsection{Using DEBRA}
 DEBRA (\url{https://www.cs.toronto.edu/~tabrown/debra/impl.htm}) is a library which uses the concept that each time we want to access the memory, we declare, using the guard a filter of which memory we can access, Debra does this in O(1), then when we want to delete a node, we retire it, making it in a state of want to be deleted. \\
 When the application decides to retire a node, we must make sure manually that each new thread which started after the retire occurred (actually after the guard is out of scope) cant access the node that was retired.\\
 Using this assumption when a guard is getting out of context, if it was the last guard that started after that node retired occurred it can safely delete this node.\\
-Both guard ctr, dctr and node retire are in o(1) which is very efficient.
+Both guard ctr, d'ctr and node retire are in o(1) which is very efficient.
 Using Debra is the most efficient way we found to do memory reclamation.
 Debra downside is in order to use Debra properly the application must be aware to Debra and we must manually retire the nodes and make sure we do the assumptions:
 \begin{itemize}
@@ -243,7 +243,7 @@ mentioned in {[}1{]}, and our C++ implementations:
 \begin{enumerate}
 \item First, we receive the parameters: amount of threads, amount of total
 tasks, amount of tasks per transaction, total percent of insert operations,
-and total percent of remove operations (the rest will be search opeartions).
+and total percent of remove operations (the rest will be search operations).
 \item We create a pool of random tasks, so the randomization process is
 not included in our time measurement.
 \item We create a linked list (we use the linked list as our study case)
@@ -331,8 +331,7 @@ fit the actual size of the list. The expected size is calculated during
 the runtime, by following the amount of inserts and removes operations
 that occurred, while the actual linked list size is calculate asynchronously
 by iterating the linked list with a counter in the end of the running.
-In this project we used the JAVA code as a black box, but maybe it
-follows from unsolved edge cases in the index implementation we observed.
+Yet, in this project we used the JAVA code as a black box.
 \item Sometimes our CPP implementation crushes due to allocating issues.
 After trying to understand the problem, we found that, despite the
 assumption we based on when we wrote the code, CPP shared\_ptr's are
@@ -347,8 +346,8 @@ didn't find incorrectness issues in our code.
 
 The results here present a running example of 10000 tasks, 10 tasks
 per transaction, and each measure was taken as the average case of
-10 samples. Again, operations are considered as succeed if they were
-not aborted by the transaction mechanism (it is a normal behavior).
+10 samples. Again, operations are considered as successful if they were
+not aborted by the transaction mechanism (when operations fail it's a normal behaviour).
 
 \subparagraph{mixed case (50-50 percent of inserts and removes)\protect \\
 }
@@ -374,7 +373,7 @@ then \textasciitilde{}10 threads. It is important to mention that
 we suspected that maybe for some reason the JAVA implementation is not running in parallel. To check this option, we added
 print commands inside the workers code and made sure the messages
 were printed alternately. For that reason we believe the JAVA implementation
-does run in pararllel. Understanding the differences between the implementations
+does run in parallel. Understanding the differences between the implementations
 might be tricky, because there are many aspects of differences between
 JAVA and CPP. But, since we see that our CPP implementation runs faster
 than the JAVA implementation from {[}1{]} only after using a few threads,
@@ -385,7 +384,7 @@ and CPP and is not necessarily directly related to the memory cleaning.
 Yet, the experiments above shows that in general, running in unsafe
 mode is faster then running in the non leaking mode, probably due
 to the clear overhead of ensuring the safetiness of the second. Maybe
-more surprising, is that using debra is a bit slower then using the
+more surprising, is the fact that using Debra is a bit slower then using the
 safe mode. Maybe this fact is related to general overhead of Debra
 implementation as it uses more complicated methods.
 \end{enumerate}
