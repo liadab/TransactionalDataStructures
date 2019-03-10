@@ -107,17 +107,35 @@ The index guarantee is to return a node which key is less than yours,
 and all the requested thread remains to do is to walk from this node
 forward, which spreads the threads along the list and minimizes collisions.
 
-\section{The Java Implementation}
+\section{Our Implementation}
 
-\section{Our C++ Implementation}
-
-A Github repostitory is available here - https://github.com/liadab/TransactionalDataStructures
+A Github repository is available here - https://github.com/liadab/TransactionalDataStructures
 (TODO - link)
 
-\subsection{Changes}
+\subsection{Changes We Have Made}
 
-When implementing the library in C++ we made some changes to the original
-implementation in Java which we based on:
+While implementing the library in C++ we have made some changes to the original Java implementation we based on. In this section we will describe each of them and the reasons which led to the change.
+
+\subsubsection{Templates}
+
+Each of our node is a template class, which is templated upon both
+its key and its value. This method enables flexibility when using
+our library yet remains the implementation neat and elegant. \\
+ The only demand from the keys is to act like numbers, in the manner
+that they have to support the “+”, “-“ operations and the std::numericlimit
+function.
+
+\subsubsection{LNodeWrapper}
+
+One of our main goals at the project was to implement the library
+in C++ without neglecting memory reclamation in order to support large
+data sets. We wanted to compare different methods of memory reclamation,
+as well as a leaking algorithm. Therefore, we came up with the \textit{LNodeWrapper}
+design. The wrapper enables memory management to be hidden from the
+user and to be managed fully by the wrapper. \\
+ In that way we could easily test and compare different memory reclamation
+models, with as minimum changes as possible, and in a short amount
+of time.
 
 \subsubsection{Index}
 
@@ -152,26 +170,12 @@ and next node in each level). In that way the contention between different
 threads is minimized at insertion as well, other than only at searching.
 \\
 
-\subsubsection{Templates}
 
-Each of our node is a template class, which is templated upon both
-its key and its value. This method enables flexibility when using
-our library yet remains the implementation neat and elegant. \\
- The only demand from the keys is to act like numbers, in the manner
-that they have to support the “+”, “-“ operations and the std::numericlimit
-function.
-
-\subsubsection{LNodeWrapper}
-
-One of our main goals at the project was to implement the library
-in C++ without neglecting memory reclamation in order to support large
-data sets. We wanted to compare different methods of memory reclamation,
-as well as a leaking algorithm. Therefore, we came up with the \textit{LNodeWrapper}
-design. The wrapper enables memory management to be hidden from the
-user and to be managed fully by the wrapper. \\
- In that way we could easily test and compare different memory reclamation
-models, with as minimum changes as possible, and in a short amount
-of time.
+\subsubsection{Local Storage}
+In the java implementation there were a global singleton of local storage, since the java implementation didn’t have multitype support it was o, but in our c++ implementation we needed to be template, so we used the thread local syntax in c++. \\
+Thread local in a member function create a copy of the local object for each thread that calls it and that’s exactly what we want. \\
+Since the method that contains the local storage is template, we get a local storage for each different key and value we use. \\
+The only downside is that because we can't know on which types, we used the local storage we need to call txend on the types we used, so the code would commit the right types.
 
 \subsubsection{Multiple Executables}
 
@@ -184,31 +188,56 @@ use when using our library, depends if he cares more about efficiency
 or perhaps he prefer to not approve any memory leak, as small as it
 may be.
 
+\subsubsection{Linked List}
+Our linked list implementation is quite similar to the java's, algorithm wise. \\
+As mentioned above we used the \textit{LNodeWrapper} for node pointers. \\
+We also cleaned the code, for example in each method on the Linked List beginning there was some identical operations with key (for example: search for the node with a specific key or the node closest to it).
+The java library always copied the same code to find the node and merged the method-specific handling code inside it. We exported out the find logic and that way our Linked List code was much shorter, end easier to understand and debug. \\
+Another change we have made regarded unnecessary allocations. The java code allocated nodes sometimes even in cases it shouldn’t have, which was inefficient, so we deleted those unneeded allocations.
+Also, there were some bugs that we fixed:
+\begin{itemize}
+    \item In remove if the node was at the end of the list, the removing logic was incorrect.
+    \item There was a bug in the find next logic that there was an abort that should have occurred in case of a singleton intervention that wasn’t handled.
+\end{itemize}
+
+Another change we've made is that we add the logic of when we can retire a node in case it was deleted for integrate the Debra implementation in our library.
+
 \subsection{Non-Leaking Algorithm}
 
+One of our main goals at the project was to create a non-leaking implementation in C++, without relying on any garbage collector, yet keeping it efficient and usable in large scales.\\
+In order to achieve our goal we tested and compared two main approaches for doing so, the first is based on the standard C++ solution, and the second uses a more specific yet more complex solution. \\
+A detailed explanation of the both solutions follows:
+
 \subsubsection{Using Shared Pointers}
+We found that using refcount was the easiest way for implementing a working solution to the memory reclamation problem. \\
+The idea of shared ptr is that each pointer also has a refcount allocated on the heap, and that way the pointer can know if there are other pointers, which can access it, or if there are no other pointer which can access this pointer and we don’t need it. Therefore it can safetly determine when to delete this memory. \\
+That way, using RAII, we could know that there indeed was no memory leakage.\\
+While validating it we noticed one unexpected leakage: in the index, due to the fact that we have nade the heades of all the different levels be a doubly-linked-list, there became a situation when two nodes had shared ptrs to each other, remained each other alive. We solved that by breaking these chains manually on the index destractor. \\
+The only downsize to this memory reclamation method is that each time we copy a pointer, we need to do fetch and add, and each time we stop we need to do fetch and dec, which can become a bottleneck in large scales.
 
 \subsubsection{Using DEBRA}
+DEBRA (TODO: link - http:
+//www.cs.toronto.edu/~tabrown/debra/impl.htm) is a library which uses the concept that each time we want to access the memory, we declare, using the guard a filter of which memory we can access, Debra does this in O(1), then when we want to delete a node, we retire it, making it in a state of want to be deleted. \\
+When the application decides to retire a node, we must make sure manually that each new thread which started after the retire occurred (actually after the guard is out of scope) cant access the node that was retired.\\
+Using this assumption when a guard is getting out of context, if it was the last guard that started after that node retired occurred it can safely delete this node.\\
+Both guard ctr, dctr and node retire are in o(1) which is very efficient.
+Using Debra is the most efficient way we found to do memory reclamation.
+Debra downside is in order to use Debra properly the application must be aware to Debra and we must manually retire the nodes and make sure we do the assumptions:
+\begin{itemize}
+\item Correctly using guards.
+\item Make sure that a thread that started a guard after retiring can't access the node.
+\end{itemize}
+Unlike shared ptr which is plug and play.
 
-TODO: write about it. \\
- When integrating the DEBRA library in our project we encountered
-a problem. In the current Index’s design, deleting a node is not a
-linearizable operation. \\
- In details, because each conceptual node may be referred by several
-different index's nodes (at different layers), the design is that
-each thread encountered a deleted node (one of which its value is
-set to NULL), unlinks it from the list at the current level it was
-at. This method of deletion is doing a great job in improving performance,
-yet it makes it impossible to cooperate with DEBRA. The reason is
-that DEBRA has to know when is it safe to remove the node, aka when
-it is not accessible by any thread. Due to the fact that many different
-threads can erase the - TODO: fix it
 
-\section{Testing System}
+\section{Concurrent Testing System}
 
-Write about GTest and thread runner
+We tested our code using the GTEST unit testing library and made tests for interesting races that could occur. \\
+We also develop the \textit{Thread Runner} testing tool, which makes thread run partial logic, then logically freeze and then end the rest of the logic. \\
+Using this we made interesting tests like one thread is doing tractional put, then this thread freeze, then a singleton is doing get for the same key and should not find the node, and then main thread unfreeze and try to commit, after the commit the other thread is doing singleton get and this time succeed. \\
+That way we tested interesting cases and found some bugs in the java implementation we were based on.
 
-\section{Testing Environment}
+\section{Tests and Measurements Environment}
 
 \subsection{Our Running Scenario}
 
@@ -291,7 +320,7 @@ in banchmark/README\_COMPILATION.txt.
 Note: it is important to run the script from within the directory
 (so JAVA will be able to access its jarfile). The script arguments
 can be seen here:\\
- \includegraphics{\string"python args\string".eps}
+ \includegraphics{\string"python args\string"}
 \item All the CPP executables (tds, tds\_unsafe, tds\_debra) can be found
 under ``build''. To compile the CPP program: from within ``build/''
 run ``cmake..'', and then: ``make -j''.
@@ -346,7 +375,7 @@ to transaction abort, as we would expect.
 doing better then the JAVA implementation, when running with more
 then \textasciitilde{}10 threads. It is important to mention that
 we suspected that maybe for some reason the JAVA implementation from
-{[}1{]} is not running in parallel. To check this option, we added
+(TODO: link) {[}1{]} is not running in parallel. To check this option, we added
 print commands inside the workers code and made sure the messages
 were printed alternately. For that reason we believe the JAVA implementation
 does run in pararllel. Understanding the differences between the implementations
