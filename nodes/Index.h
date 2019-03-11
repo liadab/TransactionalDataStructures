@@ -59,7 +59,7 @@ private:
          * @param new_succ the new successor
          * @return true if successful
          */
-        bool link(std::shared_ptr<IndexNode> succ, std::shared_ptr<IndexNode> new_succ) { // TODO: final??
+        bool link(std::shared_ptr<IndexNode> succ, std::shared_ptr<IndexNode> new_succ) {
             new_succ->m_right = succ;
             if (m_node.is_deleted() || !m_node->m_val) {
                 // important so there won't be a race with anyone trying to unlink this
@@ -76,7 +76,7 @@ private:
          * @param succ the expected current successor
          * @return true if successful
          */
-        bool unlink(std::shared_ptr<IndexNode> succ) { // TODO final
+        bool unlink(std::shared_ptr<IndexNode> succ) {
             if (!succ)
                 return true;
             if (m_node.is_deleted() || !m_node->m_val) {
@@ -293,7 +293,6 @@ private:
      * reduction.
      */
     void tryReduceLevel() {
-        // TODO: validate it, add debug prints
         auto h = m_head_top;
         if (h->m_level < 3) {
             return;
@@ -321,7 +320,6 @@ private:
      * */
     std::tuple<bool, std::shared_ptr<IndexNode>, std::shared_ptr<IndexNode>> walkLevel
             (std::shared_ptr<IndexNode> start, const key_t& key_to_add) {
-        // TODO: change it to not return tuple
         if (!start)
             throw std::invalid_argument("NULL pointer head was given to Index::walkOnLevel");
         auto q = start;
@@ -385,7 +383,7 @@ private:
                 for (;;) {
                     std::tie(finish, prev, next) = walkLevel(curr, key_to_find);
                     if (finish) break;
-                    curr = level_head; // TODO: unefficient?!
+                    curr = level_head;
                 }
                 if (prev->m_node.is_deleted() || !prev->m_node->m_val) // node prev is about to be removed, restart level
                     continue;
