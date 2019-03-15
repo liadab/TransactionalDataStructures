@@ -85,7 +85,7 @@ A transactional data structure is a data structure with its native
 operations (such as add or remove in a list and enqueue in a queue),
 plus two special operations: \textit{TXBegin} and \textit{TXCommit}.
 The library guarantees atomicity for each group of operations executed
-in between a TXBegin and a TXCommit (a \textbf{transaction}) – meaning
+in between a \textit{TXBegin} and a \textit{TXCommit} (a \textbf{transaction}) – meaning
 that either they succeed together, or they will all fail (no partial
 results are visible for any other thread). \\
  Our implementation for the library is highly based on the paper \cite{TDSL}. In this paper, the method offered for implementation
@@ -97,14 +97,13 @@ version clock (GVC)}, where node is safe to be changed if the GVC
 observed at the insertion of this node to the write/read sets is equal
 to the GVC observed after acquiring its lock. Only if all the nodes
 in the set are safe to be changed, the transaction succeeded. Otherwise,
-the transaction fails.\\
+the transaction fails and aborts.\\
  In order to minimize the contention between different threads, the
 library maintains an Index. The index is basically a concurrent skip-list,
 which is always updated only by a successful transaction. When finding
 a node in the list, one should go and search for it in the index.
-The index guarantee is to return a node which key is less than yours,
-and all the requested thread remains to do is to walk from this node
-forward, which spreads the threads along the list and minimizes collisions.
+The index's guarantee is to return a node with key less than the requested one. Then all the requested thread left to do is to walk from this node
+forward. This spreads the threads along the list and minimizes collisions.
 
 \section{Our Implementation}
 
@@ -112,15 +111,15 @@ A Github repository is available here: \\ \url{https://github.com/liadab/Transac
 
 \subsection{Changes We Have Made}
 
-While implementing the library in C++ we have made some changes to the original Java implementation we based on. In this section we will describe each of them and the reasons which led to the change.
+While implementing the library in C++ we have made some changes to the original Java implementation we were based on. In this section we will describe each of them and the reasons which led to the change.
 
 \subsubsection{Templates}
 
 Each of our node is a template class, which is templated upon both
 its key and its value. This method enables flexibility when using
 our library yet remains the implementation neat and elegant. \\
- The only demand from the keys is to act like numbers, in the manner
-that they have to support the “+”, “-“ operations and the std::numericlimit
+ The only demand from the keys is to "act like numbers", in the manner
+that they have to support the $+$, $-$ operations, basic comparison operations such as $>$ and $<$, and the \textit{std::numericlimit}
 function.
 
 \subsubsection{LNodeWrapper}
@@ -137,14 +136,14 @@ of time.
 
 \subsubsection{Index}
 
-The index is highly lean on the Java implementation yet have some
+The index leans highly on the Java implementation yet have some
 changes. In order to fully understand the changes, lets discuss shortly
 about the index’s design. \\
  As mentioned before, the index is basically a skip list. Therefore,
 it has several different levels, each level starts with a special
 node which is the head of the that level’s list. Each index node has
 a pointer to the next node in its layer, and a pointer downwards to
-the appropriate node on level lower (at the bottom layer this pointer
+the appropriate node one level lower (at the bottom layer this pointer
 is NULL). Each index node points also to the real Linked List Node,
 where nodes in different levels corresponding to the same LL-node.
 \\
@@ -170,10 +169,10 @@ threads is minimized at insertion as well, other than only at searching.
 
 
 \subsubsection{Local Storage}
-In the java implementation there were a global singleton of local storage, since the java implementation didn't have multitype support it was o, but in our C++ implementation we needed to be template, so we used the thread local syntax in C++. \\
-Thread local in a member function create a copy of the local object for each thread that calls it and that’s exactly what we want. \\
-Since the method that contains the local storage is template, we get a local storage for each different key and value we use. \\
-The only downside is that because we can't know on which types, we used the local storage we need to call txend on the types we used, so the code would commit the right types.
+In the java implementation there was a global singleton of local storage, since the java implementation didn't have multitype support. But since in our C++ implementation we needed to be templated, so we used the thread local syntax. \\
+Thread local in a member function creates a copy of the local object for each thread that calls it and which is exactly what we needed. \\
+Since the method that contains the local storage is a template, we get a local storage for each different key and value we used. \\
+The only downside is that because we can't know on which types, we used the local storage, we needed to call \textit{TXEnd} on the type we used, so the code would commit the right types (meaning that \textit{TXEnd} became a template as well).
 
 \subsubsection{Multiple Executables}
 
@@ -181,7 +180,7 @@ In order to compare the different memory reclamation approaches, we
 created many different executables, one for each method. The comparison
 was made by a different python script which only had to run the different
 executables and measure the results. \\
- Therefore it is easy for a user to choose which model he prefer to
+ Therefore it is easy for a user to choose which model he prefers to
 use when using our library, depends if he cares more about efficiency
 or perhaps he prefer to not approve any memory leak, as small as it
 may be.
@@ -189,9 +188,9 @@ may be.
 \subsubsection{Linked List}
 Our linked list implementation is quite similar to the java's, algorithm wise. \\
 As mentioned above we used the \textit{LNodeWrapper} for node pointers. \\
-We also cleaned the code, for example in each method on the Linked List beginning there was some identical operations with key (for example: search for the node with a specific key or the node closest to it).
-The java library always copied the same code to find the node and merged the method-specific handling code inside it. We exported out the find logic and that way our Linked List code was much shorter, end easier to understand and debug. \\
-Another change we have made regarded unnecessary allocations. The java code allocated nodes sometimes even in cases it shouldn’t have, which was inefficient, so we deleted those unneeded allocations.
+We also cleaned the code, for example in each Linked List method's beginning there was some identical operations with key (for example: search for the node with a specific key or the node closest to it).
+The java library always copied the same code to find the node and merged the method-specific handling code inside. We exported out the find logic and that way our Linked List code was much shorter, end easier to understand and debug. \\
+Another change we have made regarded unnecessary allocations. The java code allocated nodes sometimes even in cases it shouldn't have, which was inefficient, so we deleted those unneeded allocations.
 Also, there were some bugs that we fixed:
 \begin{itemize}
     \item In remove if the node was at the end of the list, the removing logic was incorrect.
@@ -335,9 +334,9 @@ Yet, in this project we used the JAVA code as a black box.
 \item Sometimes our CPP implementation crushes due to allocating issues.
 After trying to understand the problem, we found that, despite the
 assumption we based on when we wrote the code, CPP shared\_ptr's are
-not thread safe in some edged cases (as described in https://stackoverflow.com/questions/42172988/c11-shared-pointer-thread-safety-is-broken).
-But, this bug happens rarely, and after running a bunch of tests we
-didn't find incorrectness issues in our code.
+not thread safe in some edged cases (as described in \url{https://stackoverflow.com/questions/42172988/c11-shared-pointer-thread-safety-is-broken}).
+ Also, we found out that in C++ 20 this bug is going to be fixed by adding the class std::atomic to std::shared\_ptr (as mentioned in the CPP reference: \url{https://en.cppreference.com/w/cpp/memory/shared_ptr/atomic2}). Since this bug happens rarely, and after running a bunch of tests we
+didn't find incorrectness issues in our code, we decided to save the fix to future work.
 \end{enumerate}
 
 \section{Results and Conclusions}
@@ -365,21 +364,21 @@ not aborted by the transaction mechanism (when operations fail it's a normal beh
 and the inserts case. This behavior makes sense, because there is
 not a big difference between the two operations in the aspect of the
 algorithm.
-\item We see that when we run with more threads, more operations fail due
-to transaction abort, as we would expect.
+\item We see that in all implementations, when we run with more threads, more operations fail due
+to transaction abort, as we would expect in multi-threaded program.
 \item We can see that in terms of performance, the CPP implementation is
 doing better then the JAVA implementation, when running with more
 then \textasciitilde{}10 threads. It is important to mention that
-we suspected that maybe for some reason the JAVA implementation is not running in parallel. To check this option, we added
+we suspected that maybe for some reason the JAVA implementation is not running in parallel (since it performance doesn't improve in time). To check this option, we added
 print commands inside the workers code and made sure the messages
-were printed alternately. For that reason we believe the JAVA implementation
+were printed alternately. In addition, it does fails aborts more as the number of threads grows. For these reasons we believe the JAVA implementation
 does run in parallel. Understanding the differences between the implementations
-might be tricky, because there are many aspects of differences between
+might be tricky, since there are many aspects of differences between
 JAVA and CPP. But, since we see that our CPP implementation runs faster
-than the JAVA implementation from {[}1{]} only after using a few threads,
+than the JAVA implementation only after using a few threads,
 and regardless to the caring of memory leak in the CPP code, we assume
 this gap is more attached with the general differences between JAVA
-and CPP and is not necessarily directly related to the memory cleaning.
+and CPP and is not necessarily directly related to the memory cleaning. We also believe that the reason for JAVA to be faster then the CPP in small amount of threads is the JIT.
 \item It seems that there are not dramatic differences between the CPP implementations.
 Yet, the experiments above shows that in general, running in unsafe
 mode is faster then running in the non leaking mode, probably due
@@ -391,7 +390,11 @@ implementation as it uses more complicated methods.
 
 \section{Future Work}
 \begin{enumerate}
-\item Add template wrapper for all of our structs (INdexNode, Qnode,…) 
+\item Add a Queue and a QNode implementation, in the same concept of the list, in the manner that it also support both transaction and singleton implementation, and it will also have a QNOdeWrapper such as in the LNodeWrapper. 
+\item Add template wrapper to be used with all of the different nodes in the library (LNode, INdexNode, Qnode,…). In that way we would control all of the memory the program uses, and not just the most of it as we do now.
+\item Compare different memory reclamation models on the index, which is a large bottleneck of its own.
+\item Find and investigate more memory reclamation models. that might achieve better results than DEBRA's.
+
 \end{enumerate}
 \bibliographystyle{plain}
 \bibliography{bibfile}
